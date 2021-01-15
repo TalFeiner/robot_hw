@@ -9,12 +9,13 @@ double D = 0.1651;
 int pulsesPerRev = 60;
 double oldTime;
 
-double vel_kf = 0, p_kf = 1.0, r_kf = 1.1, q_kf = 0.5;
+double leftVel_kf = 0, leftP_kf = 1.0, rleftR_kf = 1.1, leftQ_kf = 0.5;
+double rightVel_kf = 0, rightP_kf = 1.0, rightR_kf = 1.1, rightQ_kf = 0.5;
 
 Encoder encL(pinL1, pinL2);
 Encoder encR(pinR1, pinR2);
 
-double kalmanF (double vel){
+double kalmanF (double vel, double vel_kf, double p_kf, double r_kf, double q_kf){
   p_kf = p_kf + q_kf;
   double y = vel - vel_kf;
   double s = p_kf + r_kf;
@@ -50,8 +51,8 @@ void loop() {
     oldPositionL = newPositionL;
     oldPositionR = newPositionR;
 
-    velL = kalmanF (velL);
-    velR = kalmanF (velR);
+    velL = kalmanF (velL, leftVel_kf, leftP_kf, rleftR_kf, leftQ_kf);
+    velR = kalmanF (velR, rightVel_kf, rightP_kf, rightR_kf, rightQ_kf);
       
      //---- debug -----//
 //    Serial.print("vel L: ");
