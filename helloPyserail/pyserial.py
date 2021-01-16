@@ -32,13 +32,13 @@ if not port:
     print(len(ports), 'ports found')
 
     if len(ports) is 1 and (port[0] == "/dev/ttyUSB0" or port[0] == "/dev/ttyUSB1"):
-        ser = serial.Serial(port[0], 115200)  # open serial port
+        ser = serial.Serial(port[0], baud)  # open serial port
         print(ser.name)         # check which port was really used
     else:
         rospy.logerr("Error port is not found")
 
 else:
-    ser = serial.Serial(port, 115200)
+    ser = serial.Serial(port, baud)
     print(ser.name)
 
 c=0.01
