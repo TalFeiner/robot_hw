@@ -9,33 +9,29 @@ float D = 0.1651, wheelsSeparation = 0.36; //[m]
 int pulsesPerRev = 60;
 double oldTime;
 
+struct kalman {
+   double vel_kf = 0.0;
+   double p_kf = 1.0;
+};
+
 double rleftR_kf = 1.1, leftQ_kf = 0.5;
 double rightR_kf = 1.1, rightQ_kf = 0.5;
-
-double xR_kf = 1.1, xQ_kf = 0.5;
-double thetaR_kf = 1.1, thetaQ_kf = 0.5;
+struct kalman angularVelLKF;
+struct kalman angularVelRKF;
 
 double x, theta;
-
-struct kalmanReturn {
-   double val;
-   double cov;
-};
 
 Encoder encL(pinL1, pinL2);
 Encoder encR(pinR1, pinR2);
 
-struct kalmanReturn kalmanF(double vel, double vel_kf, double p_kf, double r_kf, double q_kf){
-  struct kalmanReturn out;
-  p_kf = p_kf + q_kf;
-  double y = vel - vel_kf;
-  double s = p_kf + r_kf;
-  double k = p_kf/s;
-  //vel_kf = vel_kf + k*y;
-  //p_kf = (1-k)*p_kf;
-  out.val = vel_kf + k*y;
-  out.cov = (1-k)*p_kf;
-  return out;
+struct kalman kalmanFunc(double vel, struct kalman KF, double r_kf, double q_kf){
+  KF.p_kf = KF.p_kf + q_kf;
+  double y = vel - KF.vel_kf;
+  double s = KF.p_kf + r_kf;
+  double k = KF.p_kf/s;
+  KF.vel_kf = KF.vel_kf + k*y;
+  KF.p_kf = (1-k)*KF.p_kf;
+  return KF;
 }
 
 double wheelAngularVel(long newPosition, long oldPosition, double dt){
@@ -64,28 +60,25 @@ void loop() {
     oldPositionL = newPositionL;
     oldPositionR = newPositionR;
 
-    struct kalmanReturn angularVelLK = kalmanF (angularVelL, angularVelLK.val, angularVelLK.cov, rleftR_kf, leftQ_kf);
-    struct kalmanReturn angularVelRK = kalmanF (angularVelR, angularVelRK.val, angularVelRK.cov, rightR_kf, rightQ_kf);
+    angularVelLKF = kalmanFunc (angularVelL, angularVelLKF, rleftR_kf, leftQ_kf);
+    angularVelRKF = kalmanFunc (angularVelR, angularVelRKF, rightR_kf, rightQ_kf);
     
-    double linearVelL = D / 2 * angularVelLK.val; //[m/sec]
-    double linearVelR = D / 2 * angularVelRK.val;  //[m/sec]
+    double linearVelL = D / 2 * angularVelLKF.vel_kf; //[m/sec]
+    double linearVelR = D / 2 * angularVelRKF.vel_kf;  //[m/sec]
 
     double omega = (linearVelR - linearVelL) / wheelsSeparation; //[rad/sec]
     double linearV = (linearVelR + linearVelL) / 2;  //[m/sec]
 
     x = linearV * dt + x;
     theta = omega * dt + theta;
-   
-    struct kalmanReturn xK = kalmanF (x, xK.val, xK.cov, xR_kf, xQ_kf);
-    struct kalmanReturn thetaK = kalmanF (theta, thetaK.val, thetaK.cov, thetaR_kf, thetaQ_kf);
       
      //---- debug -----//
 //    Serial.print("vel L: ");
-//    Serial.println(angularVelL);
+//    Serial.println(angularVelLKF);
 //    Serial.println("\t, vel R: ");
-//    Serial.println(angularVelR);
+//    Serial.println(angularVelRKF);
 
-    Serial.println(String(angularVelLK.val) + ";" + String(angularVelRK.val));
+    Serial.println(String(angularVelLKF.vel_kf) + ";" + String(angularVelRKF.vel_kf));
   }
   delay(1);
 }
