@@ -29,6 +29,7 @@ void loop() {
   if(Serial.available()){
     String str = Serial.readString();
     String str1 = getValue(str, ';', 1);
+    float f = str1.toFloat();
     Serial.println("arduino got:  " + str1);
   }
   c += 0.11;
