@@ -5,9 +5,9 @@
 //Mega 2, 3, 18, 19, 20, 21
 byte pinL1 = 2, pinL2 = 3; // 18
 byte pinR1 = 19, pinR2 = 21;  // 21
-long oldPositionL  = -999, oldPositionR  = -999;
-float D = 0.1651, wheelsSeparation = 0.36; //[m]
-int pulsesPerRev = 60, duration = 2;
+long oldPositionL  = -0, oldPositionR  = -0;
+float D = 0.1651, wheelsSeparation = 0.44; //[m]
+int pulsesPerRev = 60, duration = 100;
 double oldTime;
 
 struct kalman {
@@ -84,7 +84,8 @@ void loop() {
 //    Serial.println("\t, vel R: ");
 //    Serial.println(angularVelRKF);
 
-    Serial.println(String(angularVelLKF.vel_kf) + ";" + String(angularVelRKF.vel_kf));
+//    Serial.pri/ntln(String(angularVelLKF.vel_kf) + ";" + String(angularVelRKF.vel_kf));
+    Serial.println("x: " + String(x) + " ; " + "y: " + String(y) + " ; " + "theta: " + String(theta));
   }
   delay(1);
 }
