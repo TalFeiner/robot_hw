@@ -4,7 +4,7 @@
 
 //Mega 2, 3, 18, 19, 20, 21
 byte pinL1 = 2, pinL2 = 3; // 18
-byte pinR1 = 19, pinR2 = 21;  // 21
+byte pinR1 = 20, pinR2 = 21;  // 21
 long oldPositionL  = -0, oldPositionR  = -0;
 float D = 0.1651, wheelsSeparation = 0.44; //[m]
 int pulsesPerRev = 60, duration = 100;
@@ -61,8 +61,8 @@ void loop() {
     oldPositionL = newPositionL;
     oldPositionR = newPositionR;
 
-    angularVelLKF = kalmanFunc (-angularVelL, angularVelLKF, rleftR_kf, leftQ_kf);
-    angularVelRKF = kalmanFunc (-angularVelR, angularVelRKF, rightR_kf, rightQ_kf);
+    angularVelLKF = kalmanFunc (angularVelL, angularVelLKF, rleftR_kf, leftQ_kf);
+    angularVelRKF = kalmanFunc (angularVelR, angularVelRKF, rightR_kf, rightQ_kf);
     
     double linearVelL = D / 2 * angularVelLKF.vel_kf; //[m/sec]
     double linearVelR = D / 2 * angularVelRKF.vel_kf;  //[m/sec]
