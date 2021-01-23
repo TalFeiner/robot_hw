@@ -12,7 +12,7 @@ Kp = 85.0; Ki = 60; Kd = 25
 linearI = 0.0; angularI = 0.0
 linearErrorOld = 0.0; angularErrorOld = 0.0
 
-rospy.init_node("blattoidea_hw_node")
+rospy.init_node("blattoidea_hw_node", anonymous=True)
 
 baud = ""
 try:
@@ -77,7 +77,7 @@ def cmd_vel_cb (vel):
     pwm_linear.data = Kp * linearError + Ki * linearI + Kd * linearD
     pwm_angular.data = Kp * angularError + Ki * angularI + Kd * angularD
     pub_linear_vel.publish(pwm_linear)
-    pub_linear_vel.publish(pwm_angular)
+    pub_angular_vel.publish(pwm_angular)
 
 def reset_cov_cb (empty):
     send = str(str("true;") + str("null"))
