@@ -96,8 +96,8 @@ void loop() {
 //    Serial.println("\t, vel R: ");
 //    Serial.println(angularVelRKF);
 
-//    Serial.pri/ntln(String(angularVelLKF.vel_kf) + ";" + String(angularVelRKF.vel_kf));
-    Serial.println("x: " + String(x) + " ; " + "y: " + String(y) + " ; " + "theta: " + String(theta));
+//    Serial.println(String(angularVelLKF.vel_kf) + ";" + String(angularVelRKF.vel_kf));
+    Serial.println(String(linearV) + ";" + String(omega) + ";" + "x: " + String(x) + " ; " + "y: " + String(y) + " ; " + "theta: " + String(theta));
   }
   delay(1);
 }
