@@ -85,7 +85,7 @@ def reset_cov_cb (empty):
     rospy.loginfo("dead reckoning covariance reset, done.")
     return EmptyResponse()
 
-rospy.Subscribe("/cmd_vel", Twist, cmd_vel_cb)
-rospy.Service("/blattoidea/reset_dead_reckoning _cov", Empty, reset_cov_cb)
+rospy.Subscriber("/cmd_vel", Twist, cmd_vel_cb)
+rospy.Service("/blattoidea/reset_dead_reckoning_cov", Empty, reset_cov_cb)
 
 rospy.spin()
