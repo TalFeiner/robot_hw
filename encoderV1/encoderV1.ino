@@ -1,12 +1,11 @@
 #define ENCODER_OPTIMIZE_INTERRUPTS
 #include <Encoder.h>
-#include <Coordinates.h>
 
 //Mega 2, 3, 18, 19, 20, 21
 byte pinL1 = 2, pinL2 = 3; // 18
 byte pinR1 = 20, pinR2 = 21;  // 21
 long oldPositionL  = -0, oldPositionR  = -0;
-float D = 0.1651, wheelsSeparation = 0.44; //[m]
+float D = 0.1651, wheelsSeparation = 0.42; //[m]
 int pulsesPerRev = 60, duration = 100;
 double oldTime;
 
@@ -20,7 +19,8 @@ double rightR_kf = 1.1, rightQ_kf = 0.5;
 struct kalman angularVelLKF = {vel_kf: 0.0, p_kf: 1.0};
 struct kalman angularVelRKF = {vel_kf: 0.0, p_kf: 1.0};
 
-double s, theta;
+double dist = 0.0, theta = 0.0, distError = 0.0, thetaError = 0.0;
+bool resetError = false;
 
 Encoder encL(pinL1, pinL2);
 Encoder encR(pinR1, pinR2);
@@ -46,7 +46,6 @@ void setup() {
 }
 
 void loop() {
-
   double dt = millis() - oldTime;
   if (dt >= duration){
     oldTime = millis();
@@ -64,19 +63,32 @@ void loop() {
     angularVelLKF = kalmanFunc (angularVelL, angularVelLKF, rleftR_kf, leftQ_kf);
     angularVelRKF = kalmanFunc (angularVelR, angularVelRKF, rightR_kf, rightQ_kf);
     
-    double linearVelL = D / 2 * angularVelLKF.vel_kf; //[m/sec]
-    double linearVelR = D / 2 * angularVelRKF.vel_kf;  //[m/sec]
+    double linearVelL = (D / 2) * angularVelLKF.vel_kf; //[m/sec]
+    double linearVelR = (D / 2) * angularVelRKF.vel_kf;  //[m/sec]
+    double linearErrorL = sqrt((sq((1 / 2) * angularVelLKF.vel_kf) * sq(0.001)) + (sq(D / 2) * sq(angularVelLKF.p_kf)));  //+-[m/sec]
+    double linearErrorR = sqrt((sq((1 / 2) * angularVelRKF.vel_kf) * sq(0.001)) + (sq(D / 2) * sq(angularVelRKF.p_kf)));  //+-[m/sec]
 
     double omega = (linearVelR - linearVelL) / wheelsSeparation; //[rad/sec]
     double linearV = (linearVelR + linearVelL) / 2;  //[m/sec]
+    double omegaError = sqrt((sq(1 / wheelsSeparation) * sq(linearErrorR)) + (sq(1 / wheelsSeparation) * sq(linearErrorL)) + (sq((linearVelL - linearVelR) / sq(wheelsSeparation)) * sq(0.005))); //+-[rad/sec]
+    double linearErrorV = sqrt((sq(1/2) * sq(linearErrorR)) + (sq(1/2) * sq(linearVelL)));  //+-[m/sec]
 
-    s = linearV * dt + s;  //[m]
+    dist = linearV * dt + dist;  //[m]
     theta = omega * dt + theta;  //[rad]
+    if (!resetError) {
+      distError = sqrt((sq(1 * dt) * sq(linearErrorV)) + (sq(linearV * 1) * sq(dt - (((double)duration) / 1000))) + (sq(1) * sq(distError)));  //+-[m]
+      thetaError = sqrt((sq(1 * dt) * sq(omegaError)) + (sq(omega * 1) * sq(dt - (((double)duration) / 1000))) + (sq(1) * sq(thetaError)));  //+-[rad]
+    }
+    else  {
+      distError = 0.0;
+      thetaError = 0.0;
+      resetError = false;
+    }
 
-    Coordinates point = Coordinates();
-    point.fromPolar(s,theta);
-    float x = point.getX();  //[m]
-    float y = point.getY();  //[m]
+    double x = dist * cos(theta);  //[m]
+    double y = dist * sin(theta);  //[m]
+    double xError = sqrt((sq(1 * cos(theta)) * sq(distError)) + (sq(dist * (-sin(theta))) * sq(thetaError)));  //[m]
+    double yError = sqrt((sq(1 * sin(theta)) * sq(distError)) + (sq(dist * cos(theta)) * sq(thetaError)));  //[m]
       
      //---- debug -----//
 //    Serial.print("vel L: ");
