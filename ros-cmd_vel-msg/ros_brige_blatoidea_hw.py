@@ -5,13 +5,14 @@ import serial
 from serial.tools import list_ports
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Int8
+from  std_srvs.srv import Empty, EmptyResponse
 
 global time_old, Kp, Ki, Kd, linearI, angularI, linearErrorOld, angularErrorOld
 Kp = 85.0; Ki = 60; Kd = 25
 linearI = 0.0; angularI = 0.0
 linearErrorOld = 0.0; angularErrorOld = 0.0
 
-rospy.init_node("blattoidea_cmd_pwm_node")
+rospy.init_node("blattoidea_hw_node")
 
 baud = ""
 try:
@@ -53,7 +54,7 @@ pub_angular_vel = rospy.Publisher("/blattoidea/cmd_pwm_angular", Int8, queue_siz
 
 time_old = rospy.Time.now()
 
-def cmd_vl_cb (vel):
+def cmd_vel_cb (vel):
     global time_old, Kp, Ki, Kd, linearI, angularI, linearErrorOld, angularErrorOld
 
     line = ser.readline()
@@ -78,4 +79,13 @@ def cmd_vl_cb (vel):
     pub_linear_vel.publish(pwm_linear)
     pub_linear_vel.publish(pwm_angular)
 
-rospy.Subscribe("/cmd_vel", Twist, cmd_vl_cb)
+def reset_cov_cb (empty):
+    send = str(str("true;") + str("null"))
+    ser.write(bytes(send, encoding='utf8'))
+    rospy.loginfo("dead reckoning covariance reset, done.")
+    return EmptyResponse()
+
+rospy.Subscribe("/cmd_vel", Twist, cmd_vel_cb)
+rospy.Service("/blattoidea/reset_dead_reckoning _cov", Empty, reset_cov_cb)
+
+rospy.spin()
