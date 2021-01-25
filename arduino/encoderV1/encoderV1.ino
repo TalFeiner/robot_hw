@@ -118,7 +118,7 @@ void loop() {
     double xError = sqrt((sq(1 * cos(theta)) * sq(distError)) + (sq(dist * (-sin(theta))) * sq(thetaError)));  //[m]
     double yError = sqrt((sq(1 * sin(theta)) * sq(distError)) + (sq(dist * cos(theta)) * sq(thetaError)));  //[m]
 
-//    Serial.println(String(linearV) + ";" + String(omega));
+    Serial.println(String("null") + ";" + String(linearV) + ";" + String(omega) + ";" + "null");
       
      //---- debug -----//
 //    Serial.print("vel L: ");
@@ -128,7 +128,7 @@ void loop() {
 
 //    Serial.println(String(distError) + ";" + String(dist - oldDist));
 //    Serial.println(String(linearV) + ";" + String(omega) + ";" + "x: " + String(x) + " ; " + "y: " + String(y) + " ; " + "theta: " + String(theta));
-      Serial.println("x: " + String(x) + " ; " + "xError: " + String(xError) + " ; " + "y: " + String(y) + " ; " + "yError: " + String(yError) + " ; " + "theta: " + String(theta)+ " ; " + "thetaError: " + String(thetaError));
+//      /Serial.println("x: " + String(x) + " ; " + "xError: " + String(xError) + " ; " + "y: " + String(y) + " ; " + "yError: " + String(yError) + " ; " + "theta: " + String(theta)+ " ; " + "thetaError: " + String(thetaError));
   }
   delay(1);
 }

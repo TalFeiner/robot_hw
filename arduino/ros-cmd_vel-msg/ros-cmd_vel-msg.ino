@@ -3,11 +3,11 @@
 #include <std_msgs/Bool.h>
 //#include <geometry_msgs/Twist.h>
 
-const int right_motor = 9, left_motor = 10;
-const int direction_right = 4, direction_left = 3;
-const int brackPin = 2;
-const int buttonPin = 8;
-const int PWM_linear = 5, PWM_angular = 6;
+const int right_motor = 3, left_motor = 9;
+const int direction_right = 17, direction_left = 4;
+const int brackPin_right = 16, brackPin_left = 7;
+const int buttonPin = 19;
+const int PWM_linear = 10, PWM_angular = 11;
 float pwm_linear, pwm_angular;
 bool direc_left_old = true;
 bool direc_right_old = true;
@@ -23,19 +23,21 @@ ros::NodeHandle  nh;
 
 void messageCb_brack( const std_msgs::Bool& brack_msg){
   if (brack_msg.data){
-    digitalWrite(brackPin, HIGH);
+    digitalWrite(brackPin_right, HIGH);
+    digitalWrite(brackPin_left, HIGH);
   }
   else{
-    digitalWrite(brackPin, LOW);
+    digitalWrite(brackPin_right, LOW);
+    digitalWrite(brackPin_left, LOW);
   }
 }
 
 void velCmdAngular( const std_msgs::Int8& vel){
-  pwm_angular = vel.data;
+  pwm_angular = vel.data * 2;
 }
 
 void velCmdLinear( const std_msgs::Int8& vel){
-  pwm_linear = vel.data;
+  pwm_linear = vel.data * 2;
 }
 
 //void velLinear( const std_msgs::Int8& vel){
@@ -59,12 +61,13 @@ ros::Subscriber<std_msgs::Int8> subCmdVelAngular("/blattoidea/cmd_pwm_angular", 
 //ros::Subscriber<std_msgs::Int8> subVelAngular("/blattoidea/vel_angular", &velAngular );
 
 void setup() {
-  //pinMode(brackPin, OUTPUT);
+  pinMode(brackPin_right, OUTPUT);
+  pinMode(brackPin_left, OUTPUT);
   //pinMode(right_motor, OUTPUT);
   //pinMode(left_motor, OUTPUT);
   pinMode(direction_right, OUTPUT);
   pinMode(direction_left, OUTPUT);
-  //pinMode(buttonPin, INPUT);
+  pinMode(buttonPin, INPUT);
   //pinMode(PWM_linear, INPUT);
   //pinMode(PWM_angular, INPUT);
   //analogWrite(right_motor, 0);
@@ -100,12 +103,12 @@ void drive  (int left_pwm, int right_pwm) {
     }
   
     if (direc_left != direc_left_old) {
-      digitalWrite(brackPin, HIGH);
+      digitalWrite(brackPin_left, HIGH);
       direc_left_old = direc_left;
       delay(100);
     }
     if (direc_right != direc_right_old) {
-      digitalWrite(brackPin, HIGH);
+      digitalWrite(brackPin_right, HIGH);
       direc_right_old = direc_right;
       delay(100);
     }
@@ -126,12 +129,14 @@ void drive  (int left_pwm, int right_pwm) {
       digitalWrite(direction_right, HIGH);
     }
   
-    digitalWrite(brackPin, LOW);
+    digitalWrite(brackPin_right, LOW);
+    digitalWrite(brackPin_left, LOW);
     analogWrite(left_motor,(int)left_pwm);
     analogWrite(right_motor, (int)right_pwm);  
   }
   else {
-    digitalWrite(brackPin, HIGH);
+    digitalWrite(brackPin_right, HIGH);
+    digitalWrite(brackPin_left, HIGH);
     analogWrite(left_motor,(int)0);
     analogWrite(right_motor, (int)0);
   }
