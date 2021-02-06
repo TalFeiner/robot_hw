@@ -13,28 +13,28 @@ bool direc_left_old = true;
 bool direc_right_old = true;
 unsigned int minVel = 10;
 //int cmdVelLinear = 0.0, cmdVelAngular = 0.0;
-//long tOld = millis(); 
+//long tOld = millis();
 //float linearErrorOld = 0.0, angularErrorOld = 0.0;
 //float linearI = 0.0, angularI = 0.0;
 //float Kp = 100, Ki = 0.7, Kd = 0.3;
-//float linearVel = 0.1, angularVel = 0.1; 
+//float linearVel = 0.1, angularVel = 0.1;
 
 ros::NodeHandle  nh;
 
-void messageCb_brack( const std_msgs::Bool& brack_msg){
-  if (brack_msg.data){
+void messageCb_brack( const std_msgs::Bool& brack_msg) {
+  if (brack_msg.data) {
     digitalWrite(brackPin, HIGH);
   }
-  else{
+  else {
     digitalWrite(brackPin, LOW);
   }
 }
 
-void velCmdAngular( const std_msgs::Int8& vel){
+void velCmdAngular( const std_msgs::Int8& vel) {
   pwm_angular = vel.data;
 }
 
-void velCmdLinear( const std_msgs::Int8& vel){
+void velCmdLinear( const std_msgs::Int8& vel) {
   pwm_linear = vel.data;
 }
 
@@ -69,13 +69,13 @@ void setup() {
   //pinMode(PWM_angular, INPUT);
   //analogWrite(right_motor, 0);
   //analogWrite(left_motor, 0);
-  if (digitalRead(buttonPin) == LOW){
+  if (digitalRead(buttonPin) == LOW) {
     nh.initNode();
     nh.subscribe(subCmdVelLinear);
     nh.subscribe(subCmdVelAngular);
-//    nh.subscribe(subVelLinear);
-//    nh.subscribe(subVelAngular);
-//    nh.subscribe(subVel);
+    //    nh.subscribe(subVelLinear);
+    //    nh.subscribe(subVelAngular);
+    //    nh.subscribe(subVel);
     nh.subscribe(sub_brack);
   }
 }
@@ -85,7 +85,7 @@ void drive  (int left_pwm, int right_pwm) {
   if ((abs(left_pwm) > minVel) || (abs(right_pwm) > minVel))  {
     bool direc_left;
     bool direc_right;
-    
+
     if (left_pwm > 0) {
       direc_left = true;
     }
@@ -98,7 +98,7 @@ void drive  (int left_pwm, int right_pwm) {
     else {
       direc_right = false;
     }
-  
+
     if (direc_left != direc_left_old) {
       digitalWrite(brackPin, HIGH);
       direc_left_old = direc_left;
@@ -109,7 +109,7 @@ void drive  (int left_pwm, int right_pwm) {
       direc_right_old = direc_right;
       delay(100);
     }
-    
+
     if  (left_pwm < 0)  {
       left_pwm = -left_pwm;
       digitalWrite(direction_left, HIGH);
@@ -117,7 +117,7 @@ void drive  (int left_pwm, int right_pwm) {
     else  {
       digitalWrite(direction_left, LOW);
     }
-    
+
     if  (right_pwm < 0) {
       right_pwm = -right_pwm;
       digitalWrite(direction_right, LOW);
@@ -125,14 +125,14 @@ void drive  (int left_pwm, int right_pwm) {
     else  {
       digitalWrite(direction_right, HIGH);
     }
-  
+
     digitalWrite(brackPin, LOW);
-    analogWrite(left_motor,(int)left_pwm);
-    analogWrite(right_motor, (int)right_pwm);  
+    analogWrite(left_motor, (int)left_pwm);
+    analogWrite(right_motor, (int)right_pwm);
   }
   else {
     digitalWrite(brackPin, HIGH);
-    analogWrite(left_motor,(int)0);
+    analogWrite(left_motor, (int)0);
     analogWrite(right_motor, (int)0);
   }
 }
@@ -141,7 +141,7 @@ void loop() {
     pwm_linear = (float)pulseIn(PWM_linear, HIGH);
     pwm_angular = (float)pulseIn(PWM_angular, HIGH);
 
-    
+
     pwm_linear = ((pwm_linear - 1500) / 400) * 255;
     pwm_angular = ((pwm_angular - 1500) / 400) * 255;
     if (pwm_linear > 255) pwm_linear = 255;
@@ -150,20 +150,20 @@ void loop() {
     if (pwm_angular < -255) pwm_angular = -255;
     float pwm_right = (pwm_linear + pwm_angular) / 2;
     float pwm_left = (pwm_linear - pwm_angular) / 2;
-    drive(pwm_left, pwm_right);    
-    
+    drive(pwm_left, pwm_right);
+
   }
   else  {
-//    float linearError = linearVel - cmdVelLinear; 
-//    float angularError = angularVel - cmdVelAngular;
-//    linearI += linearError; 
-//    angularI += angularError;
-//    float dt = (tOld - millis()); 
-//    float linearD = (linearError - linearErrorOld) / dt;
-//    float angularD = (angularError - angularErrorOld) / dt;
-//    pwm_linear = Kp * linearError + Ki * linearI + Kd * linearD;
-//    pwm_angular = Kp * angularError + Ki * angularI + Kd * angularD;
-//    
+    //    float linearError = linearVel - cmdVelLinear;
+    //    float angularError = angularVel - cmdVelAngular;
+    //    linearI += linearError;
+    //    angularI += angularError;
+    //    float dt = (tOld - millis());
+    //    float linearD = (linearError - linearErrorOld) / dt;
+    //    float angularD = (angularError - angularErrorOld) / dt;
+    //    pwm_linear = Kp * linearError + Ki * linearI + Kd * linearD;
+    //    pwm_angular = Kp * angularError + Ki * angularI + Kd * angularD;
+    //
     if (pwm_linear > 255) pwm_linear = 255;
     if (pwm_linear < -255) pwm_linear = -255;
     if (pwm_angular > 255) pwm_angular = 255;
@@ -171,7 +171,7 @@ void loop() {
     float pwm_right = (pwm_linear + pwm_angular) / 2;
     float pwm_left = (pwm_linear - pwm_angular) / 2;
     drive(pwm_left, pwm_right);
-    
+
     nh.spinOnce();
   }
   delay(1);
