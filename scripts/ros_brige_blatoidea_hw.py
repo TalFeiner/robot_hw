@@ -39,7 +39,7 @@ if not port:
     # print("port list: " , port)
     # print(len(ports), 'ports found')
 
-    if len(ports) is 1 and (port[0] == "/dev/ttyUSB0" or port[0] == "/dev/ttyUSB1"):
+    if len(ports) is 1 and ("/dev/ttyUSB" in port[0]):
         ser = serial.Serial(port[0], baud)  # open serial port
         # print(ser.name)         # check which port was really used
     else:
