@@ -128,7 +128,7 @@ void loop() {
 
 //    Serial.println(String(distError) + ";" + String(dist - oldDist));
 //    Serial.println(String(linearV) + ";" + String(omega) + ";" + "x: " + String(x) + " ; " + "y: " + String(y) + " ; " + "theta: " + String(theta));
-//      /Serial.println("x: " + String(x) + " ; " + "xError: " + String(xError) + " ; " + "y: " + String(y) + " ; " + "yError: " + String(yError) + " ; " + "theta: " + String(theta)+ " ; " + "thetaError: " + String(thetaError));
+//      Serial.println("x: " + String(x) + " ; " + "xError: " + String(xError) + " ; " + "y: " + String(y) + " ; " + "yError: " + String(yError) + " ; " + "theta: " + String(theta)+ " ; " + "thetaError: " + String(thetaError));
   }
   delay(1);
 }
