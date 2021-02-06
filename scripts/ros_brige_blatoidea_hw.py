@@ -73,8 +73,8 @@ def cmd_vel_cb (vel):
 
         linearError = linearVel - vel.linear.x
         angularError = angularVel - vel.angular.z
-        linearI += linearError
-        angularI += angularError
+        linearI += linearError * dt
+        angularI += angularError * dt
         dt = (time_old - rospy.Time.now())
         time_old = rospy.Time.now()
         linearD = (linearError - linearErrorOld) / dt.to_sec()
