@@ -1,12 +1,12 @@
 #include <ros.h>
 #include <std_msgs/Int8.h>
-#include <std_msgs/Bool.h>
+//#include <std_msgs/Bool.h>
 //#include <geometry_msgs/Twist.h>
 
 const int right_motor = 3, left_motor = 9;
 const int direction_right = 17, direction_left = 4;
 const int brackPin_right = 16, brackPin_left = 7;
-const int buttonPin = 19;
+const int buttonPin = 14;
 const int PWM_linear = 10, PWM_angular = 11;
 float pwm_linear, pwm_angular;
 bool direc_left_old = true;
@@ -21,23 +21,31 @@ int minPWM = 15;
 
 ros::NodeHandle  nh;
 
-void messageCb_brack( const std_msgs::Bool& brack_msg){
-  if (brack_msg.data){
+//void messageCb_brack( const std_msgs::Bool& brack_msg){
+//  if (brack_msg.data){
+//    digitalWrite(brackPin_right, HIGH);
+//    digitalWrite(brackPin_left, HIGH);
+//  }
+//  else{
+//    digitalWrite(brackPin_right, LOW);
+//    digitalWrite(brackPin_left, LOW);
+//  }
+//}
+
+void velCmdAngular( const std_msgs::Int8& velA){
+  if(velA.data==-128) {
     digitalWrite(brackPin_right, HIGH);
     digitalWrite(brackPin_left, HIGH);
   }
-  else{
+  pwm_angular = velA.data * 2;
+}
+
+void velCmdLinear( const std_msgs::Int8& velL){
+  if(velL.data==-128) {
     digitalWrite(brackPin_right, LOW);
     digitalWrite(brackPin_left, LOW);
   }
-}
-
-void velCmdAngular( const std_msgs::Int8& vel){
-  pwm_angular = vel.data * 2;
-}
-
-void velCmdLinear( const std_msgs::Int8& vel){
-  pwm_linear = vel.data * 2;
+  pwm_linear = velL.data * 2;
 }
 
 //void velLinear( const std_msgs::Int8& vel){
@@ -53,7 +61,7 @@ void velCmdLinear( const std_msgs::Int8& vel){
 //  cmdVelAngular = vel.angular.z;
 //}
 
-ros::Subscriber<std_msgs::Bool> sub_brack("/blattoidea/brake", &messageCb_brack );
+//ros::Subscriber<std_msgs::Bool> sub_brack("/blattoidea/brake", &messageCb_brack );
 //ros::Subscriber<geometry_msgs::Twist> subVel("/blattoidea/cmd_vel", &velCB );   // PWM velocity values
 ros::Subscriber<std_msgs::Int8> subCmdVelLinear("/blattoidea/cmd_pwm_linear", &velCmdLinear );
 ros::Subscriber<std_msgs::Int8> subCmdVelAngular("/blattoidea/cmd_pwm_angular", &velCmdAngular );
@@ -79,7 +87,7 @@ void setup() {
 //    nh.subscribe(subVelLinear);
 //    nh.subscribe(subVelAngular);
 //    nh.subscribe(subVel);
-    nh.subscribe(sub_brack);
+//    nh.subscribe(sub_brack);
   }
   else{
     Serial.begin(57600);

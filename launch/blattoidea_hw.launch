@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <launch>
-   <node name="blattoidea_hw_ros_node" pkg="blattoidea_hw" type="ros_brige_blatoidea_hw.py" output="screen">
-        <param name="port" value="/dev/ttyUSB2" />
+   <node name="blattoidea_mega_node" pkg="blattoidea_hw" type="ros_brige_blatoidea_hw.py" output="screen">
+        <param name="port" value="/dev/ttyUSB1" />
         <param name="baud" value="115200" />
     </node>
 
-    <node name="blattoidea_controller" pkg="rosserial_python" type="serial_node.py" output="screen">
-        <param name="port" value="/dev/ttyUSB1" />
+    <node name="blattoidea_nano_node" pkg="rosserial_python" type="serial_node.py" output="screen">
+        <param name="port" value="/dev/ttyUSB0" />
         <param name="baud" value="57600" />
     </node>
 

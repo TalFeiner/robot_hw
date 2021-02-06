@@ -97,12 +97,12 @@ void loop() {
     }
     if (resetError.equalsIgnoreCase("false")) {
       if  ((dist - oldDist) > dDist) {
-        Serial.println("distError: " + String(distError));
+        Serial.println("distError: " + String(distError) + "Arduino exceptions");
         distError = sqrt((sq(1 * dt) * sq(linearErrorV)) + (sq(linearV * 1) * sq(dt - (((double)duration) / 1000.0))) + (sq(1) * sq(distError)));  //+-[m]
         oldDist = dist;
       }
       if  ((theta - oldTheta) > dTheta) {
-        Serial.println("thetaError: " + String(thetaError));
+        Serial.println("thetaError: " + String(thetaError) + "Arduino exceptions");
         thetaError = sqrt((sq(1 * dt) * sq(omegaError)) + (sq(omega * 1) * sq(dt - (((double)duration) / 1000.0))) + (sq(1) * sq(thetaError)));  //+-[rad]
         oldTheta = theta;
       }
