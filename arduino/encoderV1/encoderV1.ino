@@ -81,44 +81,44 @@ void loop() {
     
     double linearVelL = (D / 2) * angularVelLKF.vel_kf; //[m/sec]
     double linearVelR = (D / 2) * angularVelRKF.vel_kf;  //[m/sec]
-    double linearErrorL = sqrt((sq((1 / 2) * angularVelLKF.vel_kf) * sq(0.001)) + (sq(D / 2) * sq(angularVelLKF.p_kf)));  //+-[m/sec]
-    double linearErrorR = sqrt((sq((1 / 2) * angularVelRKF.vel_kf) * sq(0.001)) + (sq(D / 2) * sq(angularVelRKF.p_kf)));  //+-[m/sec]
+//    double linearErrorL = sqrt((sq((1 / 2) * angularVelLKF.vel_kf) * sq(0.001)) + (sq(D / 2) * sq(angularVelLKF.p_kf)));  //+-[m/sec]
+//    double linearErrorR = sqrt((sq((1 / 2) * angularVelRKF.vel_kf) * sq(0.001)) + (sq(D / 2) * sq(angularVelRKF.p_kf)));  //+-[m/sec]
 
     double omega = (linearVelR - linearVelL) / wheelsSeparation; //[rad/sec]
     double linearV = (linearVelR + linearVelL) / 2;  //[m/sec]
-    double omegaError = sqrt((sq(1 / wheelsSeparation) * sq(linearErrorR)) + (sq(1 / wheelsSeparation) * sq(linearErrorL)) + (sq((linearVelL - linearVelR) / sq(wheelsSeparation)) * sq(0.005))); //+-[rad/sec]
-    double linearErrorV = sqrt((sq(1/2) * sq(linearErrorR)) + (sq(1/2) * sq(linearVelL)));  //+-[m/sec]
+//    double omegaError = sqrt((sq(1 / wheelsSeparation) * sq(linearErrorR)) + (sq(1 / wheelsSeparation) * sq(linearErrorL)) + (sq((linearVelL - linearVelR) / sq(wheelsSeparation)) * sq(0.005))); //+-[rad/sec]
+//    double linearErrorV = sqrt((sq(1/2) * sq(linearErrorR)) + (sq(1/2) * sq(linearVelL)));  //+-[m/sec]
     
     dist = linearV * dt + dist;  //[m]
     theta = omega * dt + theta;  //[rad]
-    if(Serial.available()){
-      String str = Serial.readString();
-      String resetError = String(getValue(str, ';', 0));
-    }
-    if (resetError.equalsIgnoreCase("false")) {
-      if  ((dist - oldDist) > dDist) {
-        Serial.println("distError: " + String(distError) + "Arduino exceptions");
-        distError = sqrt((sq(1 * dt) * sq(linearErrorV)) + (sq(linearV * 1) * sq(dt - (((double)duration) / 1000.0))) + (sq(1) * sq(distError)));  //+-[m]
-        oldDist = dist;
-      }
-      if  ((theta - oldTheta) > dTheta) {
-        Serial.println("thetaError: " + String(thetaError) + "Arduino exceptions");
-        thetaError = sqrt((sq(1 * dt) * sq(omegaError)) + (sq(omega * 1) * sq(dt - (((double)duration) / 1000.0))) + (sq(1) * sq(thetaError)));  //+-[rad]
-        oldTheta = theta;
-      }
-    }
-    else if (resetError.equalsIgnoreCase("true"))  {
-      distError = 0.0;
-      thetaError = 0.0;
-      resetError = String("false");
-    }
+//    if(Serial.available()){
+//      String str = Serial.readString();
+//      String resetError = String(getValue(str, ';', 0));
+//    }
+//    if (resetError.equalsIgnoreCase("false")) {
+//      if  ((dist - oldDist) > dDist) {
+//        Serial.println("distError: " + String(distError) + "Arduino exceptions");
+//        distError = sqrt((sq(1 * dt) * sq(linearErrorV)) + (sq(linearV * 1) * sq(dt - (((double)duration) / 1000.0))) + (sq(1) * sq(distError)));  //+-[m]
+//        oldDist = dist;
+//      }
+//      if  ((theta - oldTheta) > dTheta) {
+//        Serial.println("thetaError: " + String(thetaError) + "Arduino exceptions");
+//        thetaError = sqrt((sq(1 * dt) * sq(omegaError)) + (sq(omega * 1) * sq(dt - (((double)duration) / 1000.0))) + (sq(1) * sq(thetaError)));  //+-[rad]
+//        oldTheta = theta;
+//      }
+//    }
+//    else if (resetError.equalsIgnoreCase("true"))  {
+//      distError = 0.0;
+//      thetaError = 0.0;
+//      resetError = String("false");
+//    }
 
     double x = dist * cos(theta);  //[m]
     double y = dist * sin(theta);  //[m]
-    double xError = sqrt((sq(1 * cos(theta)) * sq(distError)) + (sq(dist * (-sin(theta))) * sq(thetaError)));  //[m]
-    double yError = sqrt((sq(1 * sin(theta)) * sq(distError)) + (sq(dist * cos(theta)) * sq(thetaError)));  //[m]
+//    double xError = sqrt((sq(1 * cos(theta)) * sq(distError)) + (sq(dist * (-sin(theta))) * sq(thetaError)));  //[m]
+//    double yError = sqrt((sq(1 * sin(theta)) * sq(distError)) + (sq(dist * cos(theta)) * sq(thetaError)));  //[m]
 
-    Serial.println(String("null") + ";" + String(linearV) + ";" + String(omega) + ";" + "null");
+    Serial.println(String("null") + ";" + String(angularVelLKF.vel_kf,8) + ";" + String(angularVelRKF.vel_kf,8) + ";" + "null");
       
      //---- debug -----//
 //    Serial.print("vel L: ");
@@ -131,4 +131,5 @@ void loop() {
 //      Serial.println("x: " + String(x) + " ; " + "xError: " + String(xError) + " ; " + "y: " + String(y) + " ; " + "yError: " + String(yError) + " ; " + "theta: " + String(theta)+ " ; " + "thetaError: " + String(thetaError));
   }
   delay(1);
+//  Serial.flush();
 }

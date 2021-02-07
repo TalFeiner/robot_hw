@@ -9,6 +9,7 @@ const int brackPin_right = 16, brackPin_left = 7;
 const int buttonPin = 14;
 const int PWM_linear = 10, PWM_angular = 11;
 float pwm_linear, pwm_angular;
+float cmd_left, cmd_right;
 bool direc_left_old = true;
 bool direc_right_old = true;
 int minPWM = 15;
@@ -32,20 +33,20 @@ ros::NodeHandle  nh;
 //  }
 //}
 
-void velCmdAngular( const std_msgs::Int8& velA){
-  if(velA.data==-128) {
+void velCmdLeft( const std_msgs::Int8& velL){
+  if(velL.data==-128) {
     digitalWrite(brackPin_right, HIGH);
     digitalWrite(brackPin_left, HIGH);
   }
-  pwm_angular = velA.data * 2;
+  cmd_left = velL.data * 2;
 }
 
-void velCmdLinear( const std_msgs::Int8& velL){
-  if(velL.data==-128) {
+void velCmdRight( const std_msgs::Int8& velR){
+  if(velR.data==-128) {
     digitalWrite(brackPin_right, LOW);
     digitalWrite(brackPin_left, LOW);
   }
-  pwm_linear = velL.data * 2;
+  cmd_right = velR.data * 2;
 }
 
 //void velLinear( const std_msgs::Int8& vel){
@@ -63,8 +64,8 @@ void velCmdLinear( const std_msgs::Int8& velL){
 
 //ros::Subscriber<std_msgs::Bool> sub_brack("/blattoidea/brake", &messageCb_brack );
 //ros::Subscriber<geometry_msgs::Twist> subVel("/blattoidea/cmd_vel", &velCB );   // PWM velocity values
-ros::Subscriber<std_msgs::Int8> subCmdVelLinear("/blattoidea/cmd_pwm_linear", &velCmdLinear );
-ros::Subscriber<std_msgs::Int8> subCmdVelAngular("/blattoidea/cmd_pwm_angular", &velCmdAngular );
+ros::Subscriber<std_msgs::Int8> subCmdVelLeft("/blattoidea/cmd_left", &velCmdLeft );
+ros::Subscriber<std_msgs::Int8> subCmdVelRight("/blattoidea/cmd_right", &velCmdRight );
 //ros::Subscriber<std_msgs::Int8> subVelLinear("/blattoidea/vel_linear", &velLinear );
 //ros::Subscriber<std_msgs::Int8> subVelAngular("/blattoidea/vel_angular", &velAngular );
 
@@ -82,8 +83,8 @@ void setup() {
   //analogWrite(left_motor, 0);
   if (digitalRead(buttonPin) == LOW){
     nh.initNode();
-    nh.subscribe(subCmdVelLinear);
-    nh.subscribe(subCmdVelAngular);
+    nh.subscribe(subCmdVelLeft);
+    nh.subscribe(subCmdVelRight);
 //    nh.subscribe(subVelLinear);
 //    nh.subscribe(subVelAngular);
 //    nh.subscribe(subVel);
@@ -125,7 +126,7 @@ void drive  (int left_pwm, int right_pwm) {
 //      Serial.println("right");
       delay(1);
     }
-    Serial.println(((String)pwm_linear)+";"+((String)pwm_angular)+";"+((String)direc_left)+";"+((String)direc_right));
+//    Serial.println(((String)pwm_linear)+";"+((String)pwm_angular)+";"+((String)direc_left)+";"+((String)direc_right));
     
     if  (left_pwm < 0)  {
       left_pwm = -left_pwm;
@@ -190,13 +191,11 @@ void loop() {
 //    pwm_linear = Kp * linearError + Ki * linearI + Kd * linearD;
 //    pwm_angular = Kp * angularError + Ki * angularI + Kd * angularD;
 //    
-    if (pwm_linear > 255) pwm_linear = 255;
-    if (pwm_linear < -255) pwm_linear = -255;
-    if (pwm_angular > 255) pwm_angular = 255;
-    if (pwm_angular < -255) pwm_angular = -255;
-    float pwm_right = (pwm_linear + pwm_angular) / 2;
-    float pwm_left = (pwm_linear - pwm_angular) / 2;
-    drive(pwm_left, pwm_right);
+    if (cmd_left > 255) cmd_left = 255;
+    if (cmd_left < -255) cmd_left = -255;
+    if (cmd_right > 255) cmd_right = 255;
+    if (cmd_right < -255) cmd_right = -255;
+    drive(cmd_left, cmd_right);
     
     nh.spinOnce();
   }

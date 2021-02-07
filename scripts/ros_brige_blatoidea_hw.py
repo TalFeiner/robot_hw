@@ -9,10 +9,12 @@ from serial.tools import list_ports
 import numpy as np
 # import string
 
-global time_old, Kp, Ki, Kd, linearI, angularI, linearErrorOld, angularErrorOld
-Kp = 85.0; Ki = 60; Kd = 25
-linearI = 0.0; angularI = 0.0
-linearErrorOld = 0.0; angularErrorOld = 0.0
+global time_old, Kp, Ki, Kd, leftI, leftErrorOld, rightErrorOld, dist, theta, D, wheelsSeparation
+Kp = 45.0; Ki = 13.5; Kd = 4.5
+leftI = 0.0; rightI = 0.0
+leftErrorOld = 0.0; rightErrorOld = 0.0
+dist = 0; theta = 0
+D = 0.1651; wheelsSeparation = 0.42     #   [m]
 
 rospy.init_node("blattoidea_hw_node", anonymous=True)
 
@@ -51,62 +53,94 @@ else:
     ser = serial.Serial(port, baud)
     # print(ser.name)
 
-pub_linear_vel = rospy.Publisher("/blattoidea/cmd_pwm_linear", Int8, queue_size = 1)
-pub_angular_vel = rospy.Publisher("/blattoidea/cmd_pwm_angular", Int8, queue_size = 1)
+pub_left_vel = rospy.Publisher("/blattoidea/cmd_left", Int8, queue_size = 1)
+pub_right_vel = rospy.Publisher("/blattoidea/cmd_right", Int8, queue_size = 1)
 time_old = rospy.Time.now()
 
 def cmd_vel_cb (vel):
-    global time_old, Kp, Ki, Kd, linearI, angularI, linearErrorOld, angularErrorOld
+    global time_old, Kp, Ki, Kd, leftI, rightI, leftErrorOld, rightErrorOld, dist, theta, D, wheelsSeparation
 
-    line = ser.readline()
-    # try:
-    #     line = ''.join(filter(lambda c: c in string.printable, line))
-    # except:
-    #     pass
-    # print("line: ", line)
-    var = line.split(b";")
-    if (len(var) > 2 and not b"Arduino exceptions" in var[-1]):
-        linearVel = float(var[1])
-        angularVel = float(var[2])
-        print ("linearVel: ", linearVel, " angularVel: ", angularVel)
+    if (vel.linear.x is 0.0 and vel.angular.z is 0.0):
+        msg_left = Int8()
+        msg_right = Int8()
+        msg_left.data = np.int8(0)
+        msg_right.data = np.int8(0)
+        pub_left_vel.publish(msg_left)
+        pub_right_vel.publish(msg_right)
 
-        linearError = vel.linear.x - linearVel
-        angularError = vel.angular.z - angularVel
-        dt = (time_old - rospy.Time.now()).to_sec()
-        time_old = rospy.Time.now()
-        linearI += linearError * dt
-        angularI += angularError * dt
-        linearD = (linearError - linearErrorOld) / dt
-        angularD = (angularError - angularErrorOld) / dt
-        linearErrorOld = linearError
-        angularErrorOld = angularError
+    else:
+        line = ser.readline()
+        # try:
+        #     line = ''.join(filter(lambda c: c in string.printable, line))
+        # except:
+        #     pass
+        print("line: ", line)
+        var = line.split(b";")
+        if (len(var) > 2 and not b"Arduino exceptions" in var[-1]):
+            vel_left = float(var[1])
+            vel_right = float(var[2])
+            print ("vel_left: ", vel_left, " vel_right: ", vel_right)
 
-        pwm_linear = Int8()
-        pwm_angular = Int8()
-        pwm_l = np.int8(Kp * linearError + Ki * linearI + Kd * linearD)
-        pwm_a = np.int8(Kp * angularError + Ki * angularI + Kd * angularD)
-        
-        if (pwm_l > 127):
-            pwm_l = 127
-        if (pwm_l < -127):
-            pwm_l = -127
+            # linearVelL = (D / 2) * vel_left     #   [m/sec]
+            # linearVelR = (D / 2) * vel_right     #   [m/sec]
+            # omega = (linearVelR - linearVelL) / wheelsSeparation        #   [rad/sec]
+            # linearV = (linearVelR + linearVelL) / 2     #   [m/sec]
 
-        if (pwm_a > 127):
-            pwm_a = 127
-        if (pwm_a < -127):
-            pwm_a = -127
+            # dist = linearV * dt + dist      #   [m]
+            # theta = omega * dt + theta      #   [rad]
+            # x = dist * cos(theta)       #   [m]
+            # y = dist * sin(theta)       #   [m]
 
-        pwm_linear.data = np.int8(pwm_l)
-        pwm_angular.data = np.int8(pwm_a)
-        pub_linear_vel.publish(pwm_linear)
-        pub_angular_vel.publish(pwm_angular)
-    elif (not b"Arduino exceptions" in var[-1]):
-        pwm_linear = Int8()
-        pwm_angular = Int8()
-        pwm_linear.data = np.int8(0)
-        pwm_angular.data = np.int8(0)
-        pub_linear_vel.publish(pwm_linear)
-        pub_angular_vel.publish(pwm_angular)
+            # linearError = vel.linear.x - linearVel
+            # angularError = vel.angular.z - angularVel
+            
+            cmd_linear_left = vel.linear.x - ((vel.angular.z * wheelsSeparation) / 2) 
+            cmd_linear_right = vel.linear.x - ((vel.angular.z * wheelsSeparation) / 2)
+            cmd_angular_left = cmd_linear_left / (D / 2)
+            cmd_angular_right = cmd_linear_right / (D / 2)  
+
+            error_left = vel_left - cmd_angular_left
+            error_right = vel_right - cmd_angular_right
+            dt = (time_old - rospy.Time.now()).to_sec()
+            time_old = rospy.Time.now()
+            leftI += error_left * dt
+            rightI += error_right * dt
+            leftD = (error_left - leftErrorOld) / dt
+            rightD = (error_right - rightErrorOld) / dt
+            leftErrorOld = error_left
+            rightErrorOld = error_right
+
+            left_pid = Kp * error_left + Ki * leftI + Kd * leftD
+            right_pid = Kp * error_right + Ki * rightI + Kd * rightD
+            
+            if (left_pid > 127):
+                left_pid = 127
+            if (left_pid < -127):
+                left_pid = -127
+
+            if (right_pid > 127):
+                right_pid = 127
+            if (right_pid < -127):
+                right_pid = -127
+
+            msg_left = Int8()
+            msg_right = Int8()
+
+            msg_left.data = np.int8(left_pid)
+            msg_right.data = np.int8(right_pid)
+            pub_left_vel.publish(msg_left)
+            pub_right_vel.publish(msg_right)
+            
+            print("msg_left: ", msg_left, " msg_right: ", msg_right)
+        elif (not b"Arduino exceptions" in var[-1]):
+            msg_left = Int8()
+            msg_right = Int8()
+            msg_left.data = np.int8(0)
+            msg_right.data = np.int8(0)
+            pub_left_vel.publish(msg_left)
+            pub_right_vel.publish(msg_right)
+            
+            print("msg_left: ", msg_left, " msg_right: ", msg_right)
 
 def reset_cov_cb (empty):
     send = str(str("true;") + str("null"))
