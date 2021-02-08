@@ -20,7 +20,7 @@ class PIDClass:
         self.integral = 0.0
         self.ErrorOld = 0.0
 
-    def PID_func(self, current, desirable, abs_max_integral_val = None, abs_max_pids_val = None):
+    def PID_func(self, current, desirable, abs_max_integral_val = None, abs_max_pid_val = None):
         error = current - desirable 
         dt = (self.time_old - rospy.Time.now()).to_sec()
         self.time_old = rospy.Time.now()
@@ -28,16 +28,16 @@ class PIDClass:
         derivative = (error - self.ErrorOld) / dt
         self.ErrorOld = error
         
-        if (abs(self.integral) > abs_max_integral_val and abs_max_integral_val not None):
+        if (abs(self.integral) > abs_max_integral_val and abs_max_integral_val is not None):
             self.integral = 0.0
 
-        pid = Kp * error + Ki * self.integral + Kd * derivative
+        pid = self.Kp * error + self.Ki * self.integral + self.Kd * derivative
 
-        if (abs(pid) > abs_max_pids_val and abs_max_pids_val not None):
+        if (abs(pid) > abs_max_pid_val and abs_max_pid_val is not None):
             if (pid > 0):
-                pid = abs_max_pids_val
+                pid = abs_max_pid_val
             elif (pid < 0):
-                pid = -abs_max_pids_valpid
+                pid = -1 * (abs_max_pid_val)
 
         return pid
 
@@ -156,8 +156,8 @@ def cmd_vel_cb (vel):
             # right_pid = Kp * error_right + Ki * rightI + Kd * rightD
             
             cmd_angular_left, cmd_angular_right = cmd_vel2angular_wheel_velocity(vel)
-            left_pid = PID_func(vel_left, cmd_angular_left, 127, 127)
-            right_pid = PID_func(vel_right, cmd_angular_right, 127, 127)
+            left_pid = pid.PID_func(vel_left, cmd_angular_left, 127, 127)
+            right_pid = pid.PID_func(vel_right, cmd_angular_right, 127, 127)
 
             msg_left = Int8()
             msg_right = Int8()
