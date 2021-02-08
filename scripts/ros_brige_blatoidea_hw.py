@@ -9,12 +9,51 @@ from serial.tools import list_ports
 import numpy as np
 # import string
 
-global time_old, Kp, Ki, Kd, leftI, leftErrorOld, rightErrorOld, dist, theta, D, wheelsSeparation
-Kp = 45.0; Ki = 13.5; Kd = 4.5
-leftI = 0.0; rightI = 0.0
-leftErrorOld = 0.0; rightErrorOld = 0.0
-dist = 0; theta = 0
-D = 0.1651; wheelsSeparation = 0.42     #   [m]
+global pid, pub_left_vel, pub_right_vel
+
+class PIDClass:
+    def __init__(self, Kp =  45.0, Ki = 13.5, Kd = 0.0):
+        self.time_old = rospy.Time.now()
+        self.Kp =  Kp
+        self.Ki = Ki
+        self.Kd = Kd
+        self.integral = 0.0
+        self.ErrorOld = 0.0
+
+    def PID_func(self, current, desirable, abs_max_integral_val = None, abs_max_pids_val = None):
+        error = current - desirable 
+        dt = (self.time_old - rospy.Time.now()).to_sec()
+        self.time_old = rospy.Time.now()
+        self.integral += error * dt
+        derivative = (error - self.ErrorOld) / dt
+        self.ErrorOld = error
+        
+        if (abs(self.integral) > abs_max_integral_val and abs_max_integral_val not None):
+            self.integral = 0.0
+
+        pid = Kp * error + Ki * self.integral + Kd * derivative
+
+        if (abs(pid) > abs_max_pids_val and abs_max_pids_val not None):
+            if (pid > 0):
+                pid = abs_max_pids_val
+            elif (pid < 0):
+                pid = -abs_max_pids_valpid
+
+        return pid
+
+def cmd_vel2angular_wheel_velocity(vel, diameter = 0.1651, wheelsSeparation = 0.42):
+        cmd_linear_left = vel.linear.x + ((vel.angular.z * wheelsSeparation) / 2)
+        cmd_linear_right = vel.linear.x - ((vel.angular.z * wheelsSeparation) / 2) 
+        cmd_angular_left = cmd_linear_left / (diameter / 2)
+        cmd_angular_right = cmd_linear_right / (diameter / 2)
+        return cmd_angular_left, cmd_angular_right
+
+# global time_old, Kp, Ki, Kd, leftI, leftErrorOld, rightErrorOld, dist, theta, D, wheelsSeparation
+# Kp = 45.0; Ki = 13.5; Kd = 4.5
+# leftI = 0.0; rightI = 0.0
+# leftErrorOld = 0.0; rightErrorOld = 0.0
+# dist = 0; theta = 0
+# D = 0.1651; wheelsSeparation = 0.42     #   [m]
 
 rospy.init_node("blattoidea_hw_node", anonymous=True)
 
@@ -55,10 +94,13 @@ else:
 
 pub_left_vel = rospy.Publisher("/blattoidea/cmd_left", Int8, queue_size = 1)
 pub_right_vel = rospy.Publisher("/blattoidea/cmd_right", Int8, queue_size = 1)
-time_old = rospy.Time.now()
+# time_old = rospy.Time.now()
+
+pid = PIDClass()
 
 def cmd_vel_cb (vel):
-    global time_old, Kp, Ki, Kd, leftI, rightI, leftErrorOld, rightErrorOld, dist, theta, D, wheelsSeparation
+    # global time_old, Kp, Ki, Kd, leftI, rightI, leftErrorOld, rightErrorOld, dist, theta, D, wheelsSeparation
+    global pid, pub_left_vel, pub_right_vel
 
     if (vel.linear.x is 0.0 and vel.angular.z is 0.0):
         msg_left = Int8()
@@ -94,34 +136,28 @@ def cmd_vel_cb (vel):
             # linearError = vel.linear.x - linearVel
             # angularError = vel.angular.z - angularVel
             
-            cmd_linear_left = vel.linear.x - ((vel.angular.z * wheelsSeparation) / 2) 
-            cmd_linear_right = vel.linear.x - ((vel.angular.z * wheelsSeparation) / 2)
-            cmd_angular_left = cmd_linear_left / (D / 2)
-            cmd_angular_right = cmd_linear_right / (D / 2)  
+            # cmd_linear_left = vel.linear.x - ((vel.angular.z * wheelsSeparation) / 2) 
+            # cmd_linear_right = vel.linear.x - ((vel.angular.z * wheelsSeparation) / 2)
+            # cmd_angular_left = cmd_linear_left / (D / 2)
+            # cmd_angular_right = cmd_linear_right / (D / 2)  
 
-            error_left = vel_left - cmd_angular_left
-            error_right = vel_right - cmd_angular_right
-            dt = (time_old - rospy.Time.now()).to_sec()
-            time_old = rospy.Time.now()
-            leftI += error_left * dt
-            rightI += error_right * dt
-            leftD = (error_left - leftErrorOld) / dt
-            rightD = (error_right - rightErrorOld) / dt
-            leftErrorOld = error_left
-            rightErrorOld = error_right
+            # error_left = vel_left - cmd_angular_left
+            # error_right = vel_right - cmd_angular_right
+            # dt = (time_old - rospy.Time.now()).to_sec()
+            # time_old = rospy.Time.now()
+            # leftI += error_left * dt
+            # rightI += error_right * dt
+            # leftD = (error_left - leftErrorOld) / dt
+            # rightD = (error_right - rightErrorOld) / dt
+            # leftErrorOld = error_left
+            # rightErrorOld = error_right
 
-            left_pid = Kp * error_left + Ki * leftI + Kd * leftD
-            right_pid = Kp * error_right + Ki * rightI + Kd * rightD
+            # left_pid = Kp * error_left + Ki * leftI + Kd * leftD
+            # right_pid = Kp * error_right + Ki * rightI + Kd * rightD
             
-            if (left_pid > 127):
-                left_pid = 127
-            if (left_pid < -127):
-                left_pid = -127
-
-            if (right_pid > 127):
-                right_pid = 127
-            if (right_pid < -127):
-                right_pid = -127
+            cmd_angular_left, cmd_angular_right = cmd_vel2angular_wheel_velocity(vel)
+            left_pid = PID_func(vel_left, cmd_angular_left, 127, 127)
+            right_pid = PID_func(vel_right, cmd_angular_right, 127, 127)
 
             msg_left = Int8()
             msg_right = Int8()
