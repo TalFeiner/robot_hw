@@ -5,7 +5,6 @@ import rospy
 
 class PIDClass:
     def __init__(self, Kp=45.0, Ki=13.5, Kd=0.0):
-        rospy.init_node("pid_node", anonymous=True)
         self.time_old = rospy.Time.now()
         self.Kp = Kp
         self.Ki = Ki
