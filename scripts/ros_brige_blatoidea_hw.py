@@ -58,10 +58,8 @@ def cmd_vel_cb(vel, ser, pid_left, pid_right, wheel_vel, pub_left_vel, pub_right
         msg_right.data = np.int8(0)
         pub_left_vel.publish(msg_left)
         pub_right_vel.publish(msg_right)
-        pid_left.integral = 0.0
-        pid_left.ErrorOld = 0.0
-        pid_right.integral = 0.0
-        pid_right.ErrorOld = 0.0
+        pid_left.pid_reset(True)
+        pid_right.pid_reset(True)
 
     else:
         line = ser.readline()
@@ -112,8 +110,8 @@ def cmd_vel_cb(vel, ser, pid_left, pid_right, wheel_vel, pub_left_vel, pub_right
                 pid_left.pid_reset(True)
             if(dir_right):
                 pid_right.pid_reset(True)
-            left_pid = pid_left.PID_func(vel_left, cmd_angular_left, 127, 127)
-            right_pid = pid_right.PID_func(vel_right, cmd_angular_right, 127, 127)
+            left_pid = pid_left.PID_func(vel_left, cmd_angular_left, 0.0, 127)
+            right_pid = pid_right.PID_func(vel_right, cmd_angular_right, 0.0, 127)
 
             msg_left = Int8()
             msg_right = Int8()
@@ -142,8 +140,8 @@ def reset_cov_cb(empty):
 
 pub_left_vel = rospy.Publisher("/blattoidea/cmd_left", Int8, queue_size=1)
 pub_right_vel = rospy.Publisher("/blattoidea/cmd_right", Int8, queue_size=1)
-pid_left = PIDClass()
-pid_right = PIDClass()
+pid_left = PIDClass(50, 20, 0)
+pid_right = PIDClass(50, 20, 0)
 wheel_vel = wheelVelocity()
 
 rospy.Subscriber("/cmd_vel", Twist, lambda msg: cmd_vel_cb(msg, ser, pid_left, pid_right, wheel_vel, pub_left_vel, pub_right_vel))

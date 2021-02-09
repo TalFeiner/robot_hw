@@ -4,7 +4,7 @@ import rospy
 
 
 class PIDClass:
-    def __init__(self, Kp=45.0, Ki=13.5, Kd=0.0):
+    def __init__(self, Kp=50.0, Ki=0.9, Kd=0.1):
         self.time_old = rospy.Time.now()
         self.Kp = Kp
         self.Ki = Ki
@@ -14,6 +14,7 @@ class PIDClass:
 
     def PID_func(self, current, desirable, pid_val2reset_integral=0.0, abs_max_pid_val=0.0):
         error = current - desirable
+        print("error: ", error)
         dt = (self.time_old - rospy.Time.now()).to_sec()
         self.time_old = rospy.Time.now()
         self.integral += error * dt
@@ -52,7 +53,7 @@ class wheelVelocity:
         cmd_linear_right = vel.linear.x - ((vel.angular.z * wheelsSeparation) / 2.0)
         cmd_angular_left = cmd_linear_left / (diameter / 2)
         cmd_angular_right = cmd_linear_right / (diameter / 2)
-
+        print("cmd_angular_left: ", cmd_angular_left, "cmd_angular_right: ", cmd_angular_right)
         return cmd_angular_left, cmd_angular_right
 
     def direction(self, cmd_angular_left, cmd_angular_right):
