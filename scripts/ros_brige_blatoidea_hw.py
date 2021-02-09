@@ -7,53 +7,8 @@ from  std_srvs.srv import Empty, EmptyResponse
 import serial
 from serial.tools import list_ports
 import numpy as np
+from wheel_velocity_control import PIDClass, cmd_vel2angular_wheel_velocity
 # import string
-
-global pid, pub_left_vel, pub_right_vel
-
-class PIDClass:
-    def __init__(self, Kp =  45.0, Ki = 13.5, Kd = 0.0):
-        self.time_old = rospy.Time.now()
-        self.Kp =  Kp
-        self.Ki = Ki
-        self.Kd = Kd
-        self.integral = 0.0
-        self.ErrorOld = 0.0
-
-    def PID_func(self, current, desirable, abs_max_integral_val = None, abs_max_pid_val = None):
-        error = current - desirable 
-        dt = (self.time_old - rospy.Time.now()).to_sec()
-        self.time_old = rospy.Time.now()
-        self.integral += error * dt
-        derivative = (error - self.ErrorOld) / dt
-        self.ErrorOld = error
-        
-        if (abs(self.integral) > abs_max_integral_val and abs_max_integral_val is not None):
-            self.integral = 0.0
-
-        pid = self.Kp * error + self.Ki * self.integral + self.Kd * derivative
-
-        if (abs(pid) > abs_max_pid_val and abs_max_pid_val is not None):
-            if (pid > 0):
-                pid = abs_max_pid_val
-            elif (pid < 0):
-                pid = -1 * (abs_max_pid_val)
-
-        return pid
-
-def cmd_vel2angular_wheel_velocity(vel, diameter = 0.1651, wheelsSeparation = 0.42):
-        cmd_linear_left = vel.linear.x + ((vel.angular.z * wheelsSeparation) / 2)
-        cmd_linear_right = vel.linear.x - ((vel.angular.z * wheelsSeparation) / 2) 
-        cmd_angular_left = cmd_linear_left / (diameter / 2)
-        cmd_angular_right = cmd_linear_right / (diameter / 2)
-        return cmd_angular_left, cmd_angular_right
-
-# global time_old, Kp, Ki, Kd, leftI, leftErrorOld, rightErrorOld, dist, theta, D, wheelsSeparation
-# Kp = 45.0; Ki = 13.5; Kd = 4.5
-# leftI = 0.0; rightI = 0.0
-# leftErrorOld = 0.0; rightErrorOld = 0.0
-# dist = 0; theta = 0
-# D = 0.1651; wheelsSeparation = 0.42     #   [m]
 
 rospy.init_node("blattoidea_hw_node", anonymous=True)
 
@@ -92,16 +47,7 @@ else:
     ser = serial.Serial(port, baud)
     # print(ser.name)
 
-pub_left_vel = rospy.Publisher("/blattoidea/cmd_left", Int8, queue_size = 1)
-pub_right_vel = rospy.Publisher("/blattoidea/cmd_right", Int8, queue_size = 1)
-# time_old = rospy.Time.now()
-
-pid = PIDClass()
-
-def cmd_vel_cb (vel):
-    # global time_old, Kp, Ki, Kd, leftI, rightI, leftErrorOld, rightErrorOld, dist, theta, D, wheelsSeparation
-    global pid, pub_left_vel, pub_right_vel
-
+def cmd_vel_cb (vel, ser, pid, pub_left_vel, pub_right_vel):
     if (vel.linear.x is 0.0 and vel.angular.z is 0.0):
         msg_left = Int8()
         msg_right = Int8()
@@ -184,7 +130,11 @@ def reset_cov_cb (empty):
     rospy.loginfo("dead reckoning covariance reset, done.")
     return EmptyResponse()
 
-rospy.Subscriber("/cmd_vel", Twist, cmd_vel_cb)
+pub_left_vel = rospy.Publisher("/blattoidea/cmd_left", Int8, queue_size = 1)
+pub_right_vel = rospy.Publisher("/blattoidea/cmd_right", Int8, queue_size = 1)
+pid = PIDClass()
+
+rospy.Subscriber("/cmd_vel", Twist, lambda msg: cmd_vel_cb (msg, ser, pid, pub_left_vel, pub_right_vel))
 rospy.Service("/blattoidea/reset_dead_reckoning_cov", Empty, reset_cov_cb)
 
 rospy.spin()
