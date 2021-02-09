@@ -3,7 +3,7 @@
 import rospy
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Int8
-from  std_srvs.srv import Empty, EmptyResponse
+from std_srvs.srv import Empty, EmptyResponse
 import serial
 from serial.tools import list_ports
 import numpy as np
@@ -15,14 +15,16 @@ rospy.init_node("blattoidea_hw_node", anonymous=True)
 baud = ""
 try:
     baud = rospy.get_param('~baud')
-except:
+except rospy.ROSException as e:
+    rospy.logerr("ROSException: " + e)
     rospy.logerr("could not get baud param value, trying default value")
     pass
 
 port = ""
 try:
     port = rospy.get_param('~port')
-except:
+except rospy.ROSException as e:
+    rospy.logerr("ROSException: " + e)
     rospy.logerr("could not get port param name, trying default port")
     pass
 
@@ -37,7 +39,7 @@ if not port:
     # print("port list: " , port)
     # print(len(ports), 'ports found')
 
-    if len(ports) is 1 and ("/dev/ttyUSB" in port[0]):
+    if len(ports) == 1 and ("/dev/ttyUSB" in port[0]):
         ser = serial.Serial(port[0], baud)  # open serial port
         # print(ser.name)         # check which port was really used
     else:
@@ -47,8 +49,9 @@ else:
     ser = serial.Serial(port, baud)
     # print(ser.name)
 
-def cmd_vel_cb (vel, ser, pid, pub_left_vel, pub_right_vel):
-    if (vel.linear.x is 0.0 and vel.angular.z is 0.0):
+
+def cmd_vel_cb(vel, ser, pid, pub_left_vel, pub_right_vel):
+    if(vel.linear.x == 0.0 and vel.angular.z == 0.0):
         msg_left = Int8()
         msg_right = Int8()
         msg_left.data = np.int8(0)
@@ -64,10 +67,10 @@ def cmd_vel_cb (vel, ser, pid, pub_left_vel, pub_right_vel):
         #     pass
         print("line: ", line)
         var = line.split(b";")
-        if (len(var) > 2 and not b"Arduino exceptions" in var[-1]):
+        if (len(var) > 2 and b"Arduino exceptions" not in var[-1]):
             vel_left = float(var[1])
             vel_right = float(var[2])
-            print ("vel_left: ", vel_left, " vel_right: ", vel_right)
+            print("vel_left: ", vel_left, " vel_right: ", vel_right)
 
             # linearVelL = (D / 2) * vel_left     #   [m/sec]
             # linearVelR = (D / 2) * vel_right     #   [m/sec]
@@ -81,7 +84,6 @@ def cmd_vel_cb (vel, ser, pid, pub_left_vel, pub_right_vel):
 
             # linearError = vel.linear.x - linearVel
             # angularError = vel.angular.z - angularVel
-            
             # cmd_linear_left = vel.linear.x - ((vel.angular.z * wheelsSeparation) / 2) 
             # cmd_linear_right = vel.linear.x - ((vel.angular.z * wheelsSeparation) / 2)
             # cmd_angular_left = cmd_linear_left / (D / 2)
@@ -100,7 +102,6 @@ def cmd_vel_cb (vel, ser, pid, pub_left_vel, pub_right_vel):
 
             # left_pid = Kp * error_left + Ki * leftI + Kd * leftD
             # right_pid = Kp * error_right + Ki * rightI + Kd * rightD
-            
             cmd_angular_left, cmd_angular_right = cmd_vel2angular_wheel_velocity(vel)
             left_pid = pid.PID_func(vel_left, cmd_angular_left, 127, 127)
             right_pid = pid.PID_func(vel_right, cmd_angular_right, 127, 127)
@@ -112,29 +113,29 @@ def cmd_vel_cb (vel, ser, pid, pub_left_vel, pub_right_vel):
             msg_right.data = np.int8(right_pid)
             pub_left_vel.publish(msg_left)
             pub_right_vel.publish(msg_right)
-            
             print("msg_left: ", msg_left, " msg_right: ", msg_right)
-        elif (not b"Arduino exceptions" in var[-1]):
+        elif(b"Arduino exceptions" not in var[-1]):
             msg_left = Int8()
             msg_right = Int8()
             msg_left.data = np.int8(0)
             msg_right.data = np.int8(0)
             pub_left_vel.publish(msg_left)
             pub_right_vel.publish(msg_right)
-            
             print("msg_left: ", msg_left, " msg_right: ", msg_right)
 
-def reset_cov_cb (empty):
+
+def reset_cov_cb(empty):
     send = str(str("true;") + str("null"))
     ser.write(bytes(send, encoding='utf8'))
     rospy.loginfo("dead reckoning covariance reset, done.")
     return EmptyResponse()
 
-pub_left_vel = rospy.Publisher("/blattoidea/cmd_left", Int8, queue_size = 1)
-pub_right_vel = rospy.Publisher("/blattoidea/cmd_right", Int8, queue_size = 1)
+
+pub_left_vel = rospy.Publisher("/blattoidea/cmd_left", Int8, queue_size=1)
+pub_right_vel = rospy.Publisher("/blattoidea/cmd_right", Int8, queue_size=1)
 pid = PIDClass()
 
-rospy.Subscriber("/cmd_vel", Twist, lambda msg: cmd_vel_cb (msg, ser, pid, pub_left_vel, pub_right_vel))
+rospy.Subscriber("/cmd_vel", Twist, lambda msg: cmd_vel_cb(msg, ser, pid, pub_left_vel, pub_right_vel))
 rospy.Service("/blattoidea/reset_dead_reckoning_cov", Empty, reset_cov_cb)
 
 rospy.spin()
