@@ -34,10 +34,48 @@ class PIDClass:
 
         return pid
 
+    def pid_reset(self, bool):
+        if(bool):
+            self.integral = 0.0
+            self.ErrorOld = 0.0
+        else:
+            pass
 
-def cmd_vel2angular_wheel_velocity(vel, diameter=0.1651, wheelsSeparation=0.42):
-    cmd_linear_left = vel.linear.x + ((vel.angular.z * wheelsSeparation) / 2.0)
-    cmd_linear_right = vel.linear.x - ((vel.angular.z * wheelsSeparation) / 2.0)
-    cmd_angular_left = cmd_linear_left / (diameter / 2)
-    cmd_angular_right = cmd_linear_right / (diameter / 2)
-    return cmd_angular_left, cmd_angular_right
+
+class wheelVelocity:
+    def __init__(self):
+        self.direction_left_old = True
+        self.direction_right_old = True
+
+    def cmd_vel2angular_wheel_velocity(self, vel, diameter=0.1651, wheelsSeparation=0.42):
+        cmd_linear_left = vel.linear.x + ((vel.angular.z * wheelsSeparation) / 2.0)
+        cmd_linear_right = vel.linear.x - ((vel.angular.z * wheelsSeparation) / 2.0)
+        cmd_angular_left = cmd_linear_left / (diameter / 2)
+        cmd_angular_right = cmd_linear_right / (diameter / 2)
+
+        return cmd_angular_left, cmd_angular_right
+
+    def direction(self, cmd_angular_left, cmd_angular_right):
+        if(cmd_angular_left >= 0.0):
+            direction_left = True
+        elif(cmd_angular_left < 0.0):
+            direction_left = False
+
+        if(cmd_angular_right >= 0.0):
+            direction_right = True
+        elif(cmd_angular_right < 0.0):
+            direction_right = False
+
+        if(direction_left != self.direction_left_old):
+            change_left = True
+            self.direction_left_old = direction_left
+        else:
+            change_left = False
+
+        if(direction_right != self.direction_right_old):
+            change_right = True
+            self.direction_right_old = direction_right
+        else:
+            change_right = False
+
+        return change_left, change_right
