@@ -10,6 +10,8 @@ import numpy as np
 from wheel_velocity_control import PIDClass, wheelVelocity
 # import string
 
+global time_old
+
 rospy.init_node("blattoidea_hw_node", anonymous=True)
 
 baud = ""
@@ -51,6 +53,7 @@ else:
 
 
 def cmd_vel_cb(vel, ser, pid_left, pid_right, wheel_vel, pub_left_vel, pub_right_vel):
+    global time_old
     if(vel.linear.x == 0.0 and vel.angular.z == 0.0):
         msg_left = Int8()
         msg_right = Int8()
@@ -110,8 +113,10 @@ def cmd_vel_cb(vel, ser, pid_left, pid_right, wheel_vel, pub_left_vel, pub_right
                 pid_left.pid_reset(True)
             if(dir_right):
                 pid_right.pid_reset(True)
-            left_pid = pid_left.PID_func(vel_left, cmd_angular_left, 0.0, 127)
-            right_pid = pid_right.PID_func(vel_right, cmd_angular_right, 0.0, 127)
+            dt = (time_old - rospy.Time.now()).to_sec()
+            time_old = rospy.Time.now()
+            left_pid = pid_left.PID_func(vel_left, cmd_angular_left, dt, 0.0, 127)
+            right_pid = pid_right.PID_func(vel_right, cmd_angular_right, dt, 0.0, 127)
 
             msg_left = Int8()
             msg_right = Int8()
@@ -144,6 +149,7 @@ pid_left = PIDClass(50, 20, 0)
 pid_right = PIDClass(50, 20, 0)
 wheel_vel = wheelVelocity()
 
+time_old = rospy.Time.now()
 rospy.Subscriber("/cmd_vel", Twist, lambda msg: cmd_vel_cb(msg, ser, pid_left, pid_right, wheel_vel, pub_left_vel, pub_right_vel))
 rospy.Service("/blattoidea/reset_dead_reckoning_cov", Empty, reset_cov_cb)
 

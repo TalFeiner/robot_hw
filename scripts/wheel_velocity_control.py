@@ -1,22 +1,16 @@
 #!/usr/bin/env python3
 
-import rospy
-
-
 class PIDClass:
     def __init__(self, Kp=50.0, Ki=0.9, Kd=0.1):
-        self.time_old = rospy.Time.now()
         self.Kp = Kp
         self.Ki = Ki
         self.Kd = Kd
         self.integral = 0.0
         self.ErrorOld = 0.0
 
-    def PID_func(self, current, desirable, pid_val2reset_integral=0.0, abs_max_pid_val=0.0):
+    def PID_func(self, current, desirable, dt, pid_val2reset_integral=0.0, abs_max_pid_val=0.0):
         error = current - desirable
         print("error: ", error)
-        dt = (self.time_old - rospy.Time.now()).to_sec()
-        self.time_old = rospy.Time.now()
         self.integral += error * dt
         derivative = (error - self.ErrorOld) / dt
         self.ErrorOld = error
