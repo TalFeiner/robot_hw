@@ -1,30 +1,55 @@
 #!/usr/bin/env python3
 
 class PIDClass:
-    def __init__(self, Kp=50.0, Ki=0.9, Kd=0.1):
+    def __init__(self, Kp=50.0, Ki=0.9, Kd=0.0, bais=0.0, Ti=1.0):
+        self.bais = bais
         self.Kp = Kp
         self.Ki = Ki
         self.Kd = Kd
         self.integral = 0.0
+        self.Ti = Ti
         self.ErrorOld = 0.0
+        self.setpoint_tmp = 0.0
 
-    def PID_func(self, current, desirable, dt, pid_val2reset_integral=0.0, abs_max_pid_val=0.0):
-        error = current - desirable
-        print("error: ", error)
-        self.integral += error * dt
-        derivative = (error - self.ErrorOld) / dt
-        self.ErrorOld = error
+    def PID_func(self, measured_value, setpoint, dt, abs_max_pid_val=0.0, velocity=True, position=False, reset_integral=0.0):
+        if(not velocity):
+            self.measured_value = measured_value
+            self.setpoint = setpoint
+            if(self.setpoint_tmp != 0.0):
+                error = self.setpoint_tmp - self.measured_value
+                self.setpoint_tmp = 0.0
+            else:
+                error = self.setpoint - self.measured_value
+            print("error: ", error)
+            self.integral += error * dt
+            derivative = (error - self.ErrorOld) / dt
+            self.ErrorOld = error
 
-        pid = self.Kp * error + self.Ki * self.integral + self.Kd * derivative
+            if(position):
+                pid = self.bais + self.Kp * error + self.Ki * self.integral
+                if(abs(pid) > abs_max_pid_val and abs_max_pid_val != 0.0 and position):
+                    if(pid > 0):
+                        pid = abs_max_pid_val
+                    elif(pid < 0):
+                        pid = -abs_max_pid_val
+                    self.setpoint_tmp = abs_max_pid_val
+                    error = self.setpoint_tmp - self.measured_value
+                    self.integral = (1 / self.Ki) * (self.setpoint - self.bais - (self.Kp * error))
+            else:
+                pid = self.bais + self.Kp * error + self.Ki * self.integral + self.Kd * derivative
+                if(abs(self.integral) >= reset_integral and reset_integral != 0.0):
+                    self.integral = 0.0
+                    pid = self.bais + self.Kp * error + self.Ki * self.integral + self.Kd * derivative
 
-        if (abs(pid) >= pid_val2reset_integral and pid_val2reset_integral != 0.0):
-            self.integral = 0.0
-            pid = self.Kp * error + self.Ki * self.integral + self.Kd * derivative
+        else:
+            error = self.setpoint - self.measured_value
+            pid = (self.Kp * ((1 + (self.dt / self.Ti)) * error)) - (self.Kp * self.ErrorOld)
+            self.ErrorOld = error
 
-        if (abs(pid) > abs_max_pid_val and abs_max_pid_val != 0.0):
-            if (pid > 0):
+        if(abs(pid) > abs_max_pid_val and abs_max_pid_val != 0.0):
+            if(pid > 0):
                 pid = abs_max_pid_val
-            elif (pid < 0):
+            elif(pid < 0):
                 pid = -abs_max_pid_val
 
         return pid
@@ -33,6 +58,7 @@ class PIDClass:
         if(bool):
             self.integral = 0.0
             self.ErrorOld = 0.0
+            self.measured_value = self.setpoint
         else:
             pass
 
