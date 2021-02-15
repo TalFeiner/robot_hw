@@ -12,9 +12,9 @@ class PIDClass:
         self.setpoint_tmp = 0.0
 
     def PID_func(self, measured_value, setpoint, dt, abs_max_pid_val=0.0, velocity=True, position=False, reset_integral=0.0):
+        self.measured_value = measured_value
+        self.setpoint = setpoint
         if(not velocity):
-            self.measured_value = measured_value
-            self.setpoint = setpoint
             if(self.setpoint_tmp != 0.0):
                 error = self.setpoint_tmp - self.measured_value
                 self.setpoint_tmp = 0.0
@@ -27,7 +27,7 @@ class PIDClass:
 
             if(position):
                 pid = self.bais + self.Kp * error + self.Ki * self.integral
-                if(abs(pid) > abs_max_pid_val and abs_max_pid_val != 0.0 and position):
+                if(abs(pid) > abs_max_pid_val and abs_max_pid_val != 0.0):
                     if(pid > 0):
                         pid = abs_max_pid_val
                     elif(pid < 0):
@@ -43,7 +43,7 @@ class PIDClass:
 
         else:
             error = self.setpoint - self.measured_value
-            pid = (self.Kp * ((1 + (self.dt / self.Ti)) * error)) - (self.Kp * self.ErrorOld)
+            pid = (self.Kp * ((1 + (dt / self.Ti)) * error)) - (self.Kp * self.ErrorOld)
             self.ErrorOld = error
 
         if(abs(pid) > abs_max_pid_val and abs_max_pid_val != 0.0):

@@ -78,7 +78,7 @@ class blattoideaBridge(wheelVelocity):
             rospy.logerr("Arduino Error: " + "msg_left: ", msg_left, " msg_right: ", msg_right)
 
     def __init__(self, Kp=50.0, Ki=0.9, Kd=0.0, bais=0.0, Ti=1.0):
-        super().__init__(self)
+        super().__init__()
 
         rospy.init_node("blattoidea_hw_node", anonymous=True)
         self.pid_left = PIDClass(Kp, Ki, Kd, bais, Ti)
@@ -86,9 +86,10 @@ class blattoideaBridge(wheelVelocity):
         self.time_old = rospy.Time.now()
         self.pub_left_vel = rospy.Publisher("/blattoidea/cmd_left", Int8, queue_size=1)
         self.pub_right_vel = rospy.Publisher("/blattoidea/cmd_right", Int8, queue_size=1)
-        rospy.Subscriber("/cmd_vel", Twist, self.cmd_vel_cb)
-        rospy.Service("/blattoidea/reset_dead_reckoning_cov", Empty, self.reset_cov_cb)
-        rospy.Timer(rospy.Duration(pid_duration), self.pid_timer_cb)
+        vel = Twist()
+        vel.linear.x = 0.0
+        vel.angular.z = 0.0
+        self.cmd_angular_left, self.cmd_angular_right = self.cmd_vel2angular_wheel_velocity(vel)
 
         baud = ""
         try:
@@ -123,6 +124,10 @@ class blattoideaBridge(wheelVelocity):
 
         else:
             self.ser = serial.Serial(port, baud)
+
+        rospy.Timer(rospy.Duration(pid_duration), self.pid_timer_cb)
+        rospy.Subscriber("/cmd_vel", Twist, self.cmd_vel_cb)
+        rospy.Service("/blattoidea/reset_dead_reckoning_cov", Empty, self.reset_cov_cb)
 
     def reset_cov_cb(self, empty):
         send = str(str("true;") + str("null"))
