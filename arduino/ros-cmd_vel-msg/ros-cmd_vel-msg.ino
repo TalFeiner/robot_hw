@@ -38,7 +38,7 @@ void velCmdLeft( const std_msgs::Int8& velL){
     digitalWrite(brackPin_right, HIGH);
     digitalWrite(brackPin_left, HIGH);
   }
-  cmd_left = velL.data * 2;
+  cmd_left = -velL.data * 2;
 }
 
 void velCmdRight( const std_msgs::Int8& velR){
