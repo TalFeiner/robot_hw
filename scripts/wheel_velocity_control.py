@@ -10,10 +10,15 @@ class PIDClass:
         self.Ti = Ti
         self.ErrorOld = 0.0
         self.setpoint_tmp = 0.0
+        self.pidV = 0.0
+        self.reset = False
 
-    def PID_func(self, measured_value, setpoint, dt, abs_max_pid_val=0.0, velocity=True, position=False, reset_integral=0.0):
-        self.measured_value = measured_value
-        self.setpoint = setpoint
+    def PID_func(self, measured_value, setpoint, dt, abs_max_pid_val=0.0, reset_integral=0.0, velocity=False, position=False):
+        if not self.reset:
+            self.measured_value = measured_value
+            self.setpoint = setpoint
+        else:
+            self.reset = False
         if(not velocity):
             if(self.setpoint_tmp != 0.0):
                 error = self.setpoint_tmp - self.measured_value
@@ -27,24 +32,32 @@ class PIDClass:
 
             if(position):
                 pid = self.bais + self.Kp * error + self.Ki * self.integral
-                if(abs(pid) > abs_max_pid_val and abs_max_pid_val != 0.0):
+                if(abs(pid) >= abs_max_pid_val and abs_max_pid_val != 0.0):
                     if(pid > 0):
                         pid = abs_max_pid_val
+                        self.setpoint_tmp = abs_max_pid_val
                     elif(pid < 0):
                         pid = -abs_max_pid_val
-                    self.setpoint_tmp = abs_max_pid_val
+                        self.setpoint_tmp = -abs_max_pid_val
                     error = self.setpoint_tmp - self.measured_value
-                    self.integral = (1 / self.Ki) * (self.setpoint - self.bais - (self.Kp * error))
+                    if self.Ki != 0.0:
+                        self.integral = (1 / self.Ki) * (self.setpoint - self.bais - (self.Kp * error))
+                    else:
+                        self.integral = (self.setpoint - self.bais - (self.Kp * error))
             else:
                 pid = self.bais + self.Kp * error + self.Ki * self.integral + self.Kd * derivative
                 if(abs(self.integral) >= reset_integral and reset_integral != 0.0):
-                    self.integral = 0.0
+                    if(self.integral > 0):
+                        self.integral = reset_integral
+                    elif(self.integral < 0):
+                        self.integral = -reset_integral
                     pid = self.bais + self.Kp * error + self.Ki * self.integral + self.Kd * derivative
 
         else:
             error = self.setpoint - self.measured_value
-            pid = (self.Kp * ((1 + (dt / self.Ti)) * error)) - (self.Kp * self.ErrorOld)
+            self.pidV += (self.Kp * ((1 + (dt / self.Ti)) * error)) - (self.Kp * self.ErrorOld)
             self.ErrorOld = error
+            pid = self.pidV
 
         if(abs(pid) > abs_max_pid_val and abs_max_pid_val != 0.0):
             if(pid > 0):
@@ -58,7 +71,9 @@ class PIDClass:
         if(bool):
             self.integral = 0.0
             self.ErrorOld = 0.0
+            self.pidV = 0.0
             self.measured_value = self.setpoint
+            self.reset = True
         else:
             pass
 

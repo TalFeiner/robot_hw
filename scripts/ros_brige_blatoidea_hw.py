@@ -9,10 +9,10 @@ from serial.tools import list_ports
 import numpy as np
 from wheel_velocity_control import PIDClass, wheelVelocity
 
-pid_duration = 0.1
+pid_duration = 0.000001
 bais = 0.0
-Kp = 50
-Ki = 0.9
+Kp = 10.0
+Ki = 0.0
 Kd = 0.0
 Ti = 1.0
 
@@ -65,8 +65,8 @@ class blattoideaBridge(wheelVelocity):
             print("vel_left: ", vel_left, " vel_right: ", vel_right)
             dt = (self.time_old - event.current_real).to_sec()
             self.time_old = event.current_real
-            self.left_pid = self.pid_left.PID_func(vel_left, self.cmd_angular_left, dt, 127)
-            self.right_pid = self.pid_right.PID_func(vel_right, self.cmd_angular_right, dt, 127)
+            self.left_pid = self.pid_left.PID_func(vel_left, self.cmd_angular_left, dt, 127, 100)
+            self.right_pid = self.pid_right.PID_func(vel_right, self.cmd_angular_right, dt, 127, 100)
 
         elif(b"Arduino exceptions" not in var[-1]):
             msg_left = Int8()
@@ -90,6 +90,8 @@ class blattoideaBridge(wheelVelocity):
         vel.linear.x = 0.0
         vel.angular.z = 0.0
         self.cmd_angular_left, self.cmd_angular_right = self.cmd_vel2angular_wheel_velocity(vel)
+        self.left_pid = self.pid_left.PID_func(0.0, self.cmd_angular_left, pid_duration, 127)
+        self.right_pid = self.pid_right.PID_func(0.0, self.cmd_angular_right, pid_duration, 127)
 
         baud = ""
         try:
@@ -125,6 +127,7 @@ class blattoideaBridge(wheelVelocity):
         else:
             self.ser = serial.Serial(port, baud)
 
+        rospy.wait_for_message("/cmd_vel", Twist)
         rospy.Timer(rospy.Duration(pid_duration), self.pid_timer_cb)
         rospy.Subscriber("/cmd_vel", Twist, self.cmd_vel_cb)
         rospy.Service("/blattoidea/reset_dead_reckoning_cov", Empty, self.reset_cov_cb)
