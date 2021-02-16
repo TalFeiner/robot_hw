@@ -9,7 +9,8 @@ from serial.tools import list_ports
 import numpy as np
 from wheel_velocity_control import PIDClass, wheelVelocity
 
-pid_duration = 0.000001
+pid_duration = 0.1
+encoder_duration = 0.000001
 bais = 0.0
 Kp = 10.0
 Ki = 0.0
@@ -56,19 +57,16 @@ class blattoideaBridge(wheelVelocity):
         print("msg_left: ", msg_left, " msg_right: ", msg_right)
 
     def pid_timer_cb(self, event):
-        line = self.ser.readline()
-        print("line: ", line)
-        var = line.split(b";")
-        if (len(var) > 2 and b"Arduino exceptions" not in var[-1]):
-            vel_left = float(var[1])
-            vel_right = float(var[2])
+        if (len(self.var) > 2 and b"Arduino exceptions" not in self.var[-1]):
+            vel_left = float(self.var[1])
+            vel_right = float(self.var[2])
             print("vel_left: ", vel_left, " vel_right: ", vel_right)
             dt = (self.time_old - event.current_real).to_sec()
             self.time_old = event.current_real
             self.left_pid = self.pid_left.PID_func(vel_left, self.cmd_angular_left, dt, 127, 100)
             self.right_pid = self.pid_right.PID_func(vel_right, self.cmd_angular_right, dt, 127, 100)
 
-        elif(b"Arduino exceptions" not in var[-1]):
+        elif(b"Arduino exceptions" not in self.var[-1]):
             msg_left = Int8()
             msg_right = Int8()
             msg_left.data = np.int8(0)
@@ -129,8 +127,15 @@ class blattoideaBridge(wheelVelocity):
 
         rospy.wait_for_message("/cmd_vel", Twist)
         rospy.Timer(rospy.Duration(pid_duration), self.pid_timer_cb)
+        rospy.Timer(rospy.Duration(pid_duration), self.encoder_timer_cb)
         rospy.Subscriber("/cmd_vel", Twist, self.cmd_vel_cb)
         rospy.Service("/blattoidea/reset_dead_reckoning_cov", Empty, self.reset_cov_cb)
+
+    def encoder_timer_cb(self, event):
+        line = self.ser.readline()
+        if encoder_duration % pid_duration == 0:
+            print("line: ", line)
+        self.var = line.split(b";")
 
     def reset_cov_cb(self, empty):
         send = str(str("true;") + str("null"))
