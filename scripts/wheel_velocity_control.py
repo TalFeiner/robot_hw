@@ -13,6 +13,33 @@ class PIDClass:
         self.pidV = 0.0
         self.reset = False
 
+    def PID(self, measured_value, setpoint, dt, abs_max_pid_val=0.0, reset_integral=0.0):
+        if not self.reset:
+            self.measured_value = measured_value
+            self.setpoint = setpoint
+        else:
+            self.reset = False
+        error = self.setpoint - self.measured_value
+        print("error: ", error)
+        self.integral += error * dt
+        derivative = (error - self.ErrorOld) / dt
+        self.ErrorOld = error
+        pid = self.bais + self.Kp * error + self.Ki * self.integral + self.Kd * derivative
+        if(abs(self.integral) >= reset_integral and reset_integral != 0.0):
+            if(self.integral > 0):
+                self.integral = reset_integral
+            elif(self.integral < 0):
+                self.integral = -reset_integral
+            pid = self.bais + self.Kp * error + self.Ki * self.integral + self.Kd * derivative
+
+        if(abs(pid) > abs_max_pid_val and abs_max_pid_val != 0.0):
+            if(pid > 0):
+                pid = abs_max_pid_val
+            elif(pid < 0):
+                pid = -abs_max_pid_val
+
+        return pid
+
     def PID_func(self, measured_value, setpoint, dt, abs_max_pid_val=0.0, reset_integral=0.0, velocity=False, position=False):
         if not self.reset:
             self.measured_value = measured_value

@@ -13,67 +13,12 @@ pid_duration = 0.1
 encoder_duration = 0.000001
 bais = 0.0
 Kp = 10.0
-Ki = 0.0
+Ki = 1.0
 Kd = 0.0
 Ti = 1.0
 
 
 class blattoideaBridge(wheelVelocity):
-
-    def cmd_vel_cb(self, vel):
-        self.vel = vel
-        self.cmd_angular_left, self.cmd_angular_right = self.cmd_vel2angular_wheel_velocity(vel)
-        dir_left, dir_right = self.direction(self.cmd_angular_left, self.cmd_angular_right)
-        if(dir_left):
-            self.pid_left.pid_reset(True)
-        if(dir_right):
-            self.pid_right.pid_reset(True)
-
-        if(vel.linear.x == 0.0 and vel.angular.z == 0.0):
-            msg_left = Int8()
-            msg_right = Int8()
-            msg_left.data = np.int8(0)
-            msg_right.data = np.int8(0)
-            self.pub_left_vel.publish(msg_left)
-            self.pub_right_vel.publish(msg_right)
-            self.pid_left.pid_reset(True)
-            self.pid_right.pid_reset(True)
-        elif(self.left_pid is None or self.right_pid is None):
-            msg_left = Int8()
-            msg_right = Int8()
-            msg_left.data = np.int8(0)
-            msg_right.data = np.int8(0)
-            self.pub_left_vel.publish(msg_left)
-            self.pub_right_vel.publish(msg_right)
-            self.pid_left.pid_reset(True)
-            self.pid_right.pid_reset(True)
-        else:
-            msg_left = Int8()
-            msg_right = Int8()
-            msg_left.data = np.int8(self.left_pid)
-            msg_right.data = np.int8(self.right_pid)
-            self.pub_left_vel.publish(msg_left)
-            self.pub_right_vel.publish(msg_right)            
-        print("msg_left: ", msg_left, " msg_right: ", msg_right)
-
-    def pid_timer_cb(self, event):
-        if (len(self.var) > 2 and b"Arduino exceptions" not in self.var[-1]):
-            vel_left = float(self.var[1])
-            vel_right = float(self.var[2])
-            print("vel_left: ", vel_left, " vel_right: ", vel_right)
-            dt = (self.time_old - event.current_real).to_sec()
-            self.time_old = event.current_real
-            self.left_pid = self.pid_left.PID_func(vel_left, self.cmd_angular_left, dt, 127, 100)
-            self.right_pid = self.pid_right.PID_func(vel_right, self.cmd_angular_right, dt, 127, 100)
-
-        elif(b"Arduino exceptions" not in self.var[-1]):
-            msg_left = Int8()
-            msg_right = Int8()
-            msg_left.data = np.int8(0)
-            msg_right.data = np.int8(0)
-            self.pub_left_vel.publish(msg_left)
-            self.pub_right_vel.publish(msg_right)
-            rospy.logerr("Arduino Error: " + "msg_left: ", msg_left, " msg_right: ", msg_right)
 
     def __init__(self, Kp=50.0, Ki=0.9, Kd=0.0, bais=0.0, Ti=1.0):
         super().__init__()
@@ -88,8 +33,8 @@ class blattoideaBridge(wheelVelocity):
         vel.linear.x = 0.0
         vel.angular.z = 0.0
         self.cmd_angular_left, self.cmd_angular_right = self.cmd_vel2angular_wheel_velocity(vel)
-        self.left_pid = self.pid_left.PID_func(0.0, self.cmd_angular_left, pid_duration, 127)
-        self.right_pid = self.pid_right.PID_func(0.0, self.cmd_angular_right, pid_duration, 127)
+        self.left_pid = self.pid_left.PID(0.0, self.cmd_angular_left, pid_duration, 127)
+        self.right_pid = self.pid_right.PID(0.0, self.cmd_angular_right, pid_duration, 127)
 
         baud = ""
         try:
@@ -125,17 +70,70 @@ class blattoideaBridge(wheelVelocity):
         else:
             self.ser = serial.Serial(port, baud)
 
+        rospy.Timer(rospy.Duration(pid_duration), self.encoder_timer_cb)
         rospy.wait_for_message("/cmd_vel", Twist)
         rospy.Timer(rospy.Duration(pid_duration), self.pid_timer_cb)
-        rospy.Timer(rospy.Duration(pid_duration), self.encoder_timer_cb)
         rospy.Subscriber("/cmd_vel", Twist, self.cmd_vel_cb)
         rospy.Service("/blattoidea/reset_dead_reckoning_cov", Empty, self.reset_cov_cb)
 
     def encoder_timer_cb(self, event):
         line = self.ser.readline()
-        if encoder_duration % pid_duration == 0:
-            print("line: ", line)
+        # print("line: ", line)
         self.var = line.split(b";")
+
+    def cmd_vel_cb(self, vel):
+        self.cmd_angular_left, self.cmd_angular_right = self.cmd_vel2angular_wheel_velocity(vel)
+        dir_left, dir_right = self.direction(self.cmd_angular_left, self.cmd_angular_right)
+        if(dir_left):
+            self.pid_left.pid_reset(True)
+        if(dir_right):
+            self.pid_right.pid_reset(True)
+
+        if(vel.linear.x == 0.0 and vel.angular.z == 0.0):
+            msg_left = Int8()
+            msg_right = Int8()
+            msg_left.data = np.int8(0)
+            msg_right.data = np.int8(0)
+            self.pub_left_vel.publish(msg_left)
+            self.pub_right_vel.publish(msg_right)
+            self.pid_left.pid_reset(True)
+            self.pid_right.pid_reset(True)
+        elif(self.left_pid is None or self.right_pid is None):
+            msg_left = Int8()
+            msg_right = Int8()
+            msg_left.data = np.int8(0)
+            msg_right.data = np.int8(0)
+            self.pub_left_vel.publish(msg_left)
+            self.pub_right_vel.publish(msg_right)
+            self.pid_left.pid_reset(True)
+            self.pid_right.pid_reset(True)
+        else:
+            msg_left = Int8()
+            msg_right = Int8()
+            msg_left.data = np.int8(self.left_pid)
+            msg_right.data = np.int8(self.right_pid)
+            self.pub_left_vel.publish(msg_left)
+            self.pub_right_vel.publish(msg_right)
+            print("msg_left: ", msg_left, " msg_right: ", msg_right)
+
+    def pid_timer_cb(self, event):
+        if (len(self.var) > 2 and b"Arduino exceptions" not in self.var[-1]):
+            vel_left = float(self.var[1])
+            vel_right = -float(self.var[2])
+            print("vel_left: ", vel_left, " vel_right: ", vel_right)
+            dt = (event.current_real - self.time_old).to_sec()
+            self.time_old = event.current_real
+            self.left_pid = self.pid_left.PID(vel_left, self.cmd_angular_left, dt, 127, 100)
+            self.right_pid = self.pid_right.PID(vel_right, self.cmd_angular_right, dt, 127, 100)
+
+        elif(b"Arduino exceptions" not in self.var[-1]):
+            msg_left = Int8()
+            msg_right = Int8()
+            msg_left.data = np.int8(0)
+            msg_right.data = np.int8(0)
+            self.pub_left_vel.publish(msg_left)
+            self.pub_right_vel.publish(msg_right)
+            rospy.logerr("Arduino Error: " + "msg_left: ", msg_left, " msg_right: ", msg_right)
 
     def reset_cov_cb(self, empty):
         send = str(str("true;") + str("null"))
