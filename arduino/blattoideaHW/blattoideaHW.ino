@@ -5,7 +5,7 @@
 #include <Wire.h>
 Adafruit_MCP4728 mcp;
 
-#define sdaPin = 20, sclPin = 21;
+#define sdaPin 20, sclPin 21;
 const byte buttonPin = 15;
 const byte PWMLinearPin = 45, PWMAngularPin = 46;
 const byte directionRightPin = 29, directionLeftPin = 28;
@@ -141,6 +141,7 @@ void setup() {
       delay(10);
     }
   }
+  Serial.println("Found MCP4728 chip");
   mcp.setChannelValue(MCP4728_CHANNEL_A, 0);
   mcp.setChannelValue(MCP4728_CHANNEL_B, 0);
   mcp.setChannelValue(MCP4728_CHANNEL_C, 0);
@@ -169,8 +170,8 @@ void loop() {
       if (angularCmdVal < -velMaxVal) angularCmdVal = -velMaxVal;
     }
     
-    float cmdRight = (linearCmdVal + angularCmdVal) / 2;
-    float cmdLeft = (linearCmdVal - angularCmdVal) / 2;
+    float cmdRight = (linearCmdVal - angularCmdVal) / 2;
+    float cmdLeft = (linearCmdVal + angularCmdVal) / 2;
     drive(cmdLeft, cmdRight);
   }
 
@@ -181,7 +182,7 @@ void loop() {
     long newPositionL = encL.read();
     long newPositionR = encR.read();
     
-    double angularVelL = wheelAngularVel(newPositionL, oldPositionL, dt);  //  [rad/sec]
+    double angularVelL = -wheelAngularVel(newPositionL, oldPositionL, dt);  //  [rad/sec]
     double angularVelR = wheelAngularVel(newPositionR, oldPositionR, dt);  //  [rad/sec]
     oldPositionL = newPositionL;
     oldPositionR = newPositionR;
