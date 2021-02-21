@@ -30,7 +30,7 @@ void loop() {
     String str = Serial.readString();
     String str1 = getValue(str, ';', 1);
     float f = str1.toFloat();
-    Serial.println("arduino got:  " + str1);
+    Serial.println("arduino got:  " + str);
   }
   c += 0.11;
 //  dela/y(1000);

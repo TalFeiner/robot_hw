@@ -5,7 +5,7 @@
 #include <Wire.h>
 Adafruit_MCP4728 mcp;
 
-#define sdaPin 20, sclPin 21;
+// sdaPin 20, sclPin 21;
 const byte buttonPin = 15;
 const byte PWMLinearPin = 45, PWMAngularPin = 46;
 const byte directionRightPin = 29, directionLeftPin = 28;
@@ -18,12 +18,12 @@ float D = 0.1651, wheelsSeparation = 0.42; //[m]
 int pulsesPerRev = 60;
 float duration = 0.1;  //  [sec]
 double oldTime;
-int velMaxVal = 2000;
+int velMaxVal = 4000;
 
 float linearCmdVal, angularCmdVal;
 bool direcLeftOld = true;
 bool direcRightOld = true;
-int minVelCmd = 0;
+int minVelCmd = 80;
 
 struct kalman {
    double vel_kf;
@@ -204,5 +204,5 @@ void loop() {
 
     Serial.println(String("null") + ";" + String(angularVelLKF.vel_kf,8) + ";" + String(angularVelRKF.vel_kf,8) + ";" + "null");
   }
-  delay(1);
+//  delay(1);
 }
