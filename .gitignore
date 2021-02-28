@@ -48,3 +48,6 @@ Thumbs.db
 *.mov
 *.wmv
 
+# Arduino git
+arduino/libraries/arduino-robust-serial/.*
+
