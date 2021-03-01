@@ -1,8 +1,11 @@
 #define ENCODER_OPTIMIZE_INTERRUPTS
 #include <Encoder.h>
-
+#define CHANNELS 11
 #include <Adafruit_MCP4728.h>
 #include <Wire.h>
+#include "order.h"
+#include "slave.h"
+#include "parameters.h"
 Adafruit_MCP4728 mcp;
 
 // sdaPin 20, sclPin 21;
@@ -17,13 +20,20 @@ long oldPositionL  = -0, oldPositionR  = -0;
 float D = 0.1651, wheelsSeparation = 0.42; //[m]
 int pulsesPerRev = 60;
 float duration = 0.1;  //  [sec]
-double oldTime;
+double oldTime = 0, last_cmd_time = 0;
 int velMaxVal = 4000;
-
+const byte debug = 0;
+const int max_rem_val = 1810 ,min_rem_val = 1166;
+int norm_factor = (max_rem_val - min_rem_val) / 2;
+const int mid_rem_val = 1470;
+int cmd_motor_left = 0, cmd_motor_right = 0;
 float linearCmdVal, angularCmdVal;
 bool direcLeftOld = true;
 bool direcRightOld = true;
 int minVelCmd = 80;
+
+String inputString = "";         // a String to hold incoming data
+bool stringComplete = false;  // whether the string is complete
 
 struct kalman {
    double vel_kf;
@@ -49,6 +59,20 @@ struct kalman kalmanFunc(double vel, struct kalman KF, double r_kf, double q_kf)
   KF.vel_kf = KF.vel_kf + k*y;
   KF.p_kf = (1-k)*KF.p_kf;
   return KF;
+}
+
+void serialEvent() {
+  while (Serial.available()) {
+    // get the new byte:
+    char inChar = (char)Serial.read();
+    // add it to the inputString:
+    inputString += inChar;
+    // if the incoming character is a newline, set a flag so the main loop can
+    // do something about it:
+    if (inChar == '\n') {
+      stringComplete = true;
+    }
+  }
 }
 
 String getValue(String data, char separator, int index)
@@ -131,17 +155,20 @@ void drive  (int leftVelCmd, int rightVelCmd) {
 
 void setup() {
   Serial.begin(115200);
+  // reserve 2 bytes for the inputString:
+  inputString.reserve(2);
+  Serial2.begin(115200);
   while (!Serial)
     delay(10); // will pause Zero, Leonardo, etc until serial console opens
-  Serial.println("Adafruit MCP4728 test!");
+  Serial2.println("Adafruit MCP4728 test!");
   // Try to initialize!
   if (!mcp.begin()) {
-    Serial.println("Failed to find MCP4728 chip");
+    Serial2.println("Failed to find MCP4728 chip");
     while (1) {
       delay(10);
     }
   }
-  Serial.println("Found MCP4728 chip");
+  Serial2.println("Found MCP4728 chip");
   mcp.setChannelValue(MCP4728_CHANNEL_A, 0);
   mcp.setChannelValue(MCP4728_CHANNEL_B, 0);
   mcp.setChannelValue(MCP4728_CHANNEL_C, 0);
@@ -156,14 +183,17 @@ void loop() {
   if(digitalRead(buttonPin) == HIGH) {
     linearCmdVal = (float)pulseIn(PWMLinearPin, HIGH);
     angularCmdVal = (float)pulseIn(PWMAngularPin, HIGH);
-        
+    if (debug==1)
+    {
+      
+    }
     if (linearCmdVal == 0 || angularCmdVal == 0){
       linearCmdVal = 0;
       angularCmdVal = 0;
     }
     else{
-      linearCmdVal = ((linearCmdVal - 1500) / 200) * velMaxVal;
-      angularCmdVal = ((angularCmdVal - 1500) / 200) * velMaxVal;
+      linearCmdVal = ((linearCmdVal - mid_rem_val) / norm_factor) * velMaxVal;
+      angularCmdVal = ((angularCmdVal - mid_rem_val) / norm_factor) * velMaxVal;
       if (linearCmdVal > velMaxVal) linearCmdVal = velMaxVal;
       if (linearCmdVal < -velMaxVal) linearCmdVal = -velMaxVal;
       if (angularCmdVal > velMaxVal) angularCmdVal = velMaxVal;
@@ -172,7 +202,34 @@ void loop() {
     
     float cmdRight = (linearCmdVal - angularCmdVal) / 2;
     float cmdLeft = (linearCmdVal + angularCmdVal) / 2;
+    if (debug==1)
+    {
+      Serial2.println((String)(cmdRight) + " , " + (String)(cmdLeft));
+    }
     drive(cmdLeft, cmdRight);
+  }
+  else
+  {
+    // print the string when a newline arrives:
+    if (stringComplete) {
+      Serial2.println(inputString);
+      cmd_motor_left = getValue((String)inputString, ';', 0).toInt();
+      cmd_motor_right = getValue((String)inputString, ';', 1).toInt();
+      // clear the string:
+      inputString = "";
+      stringComplete = false;
+      last_cmd_time = millis();
+    }
+    double dt = (millis() - last_cmd_time) / 1000;  //  [sec]
+    if (dt < 0.5){
+      drive(cmd_motor_left, cmd_motor_right);
+      //delay(10);
+    }
+    else
+    {
+      drive(0, 0);
+    }
+    
   }
 
   double dt = (millis() - oldTime) / 1000;  //  [sec]
@@ -202,7 +259,8 @@ void loop() {
     double x = dist * cos(theta);  //[m]
     double y = dist * sin(theta);  //[m]
 
-    Serial.println(String("null") + ";" + String(angularVelLKF.vel_kf,8) + ";" + String(angularVelRKF.vel_kf,8) + ";" + "null");
+    Serial2.println(String("null") + ";" + String(angularVelLKF.vel_kf,8) + ";" + String(angularVelRKF.vel_kf,8) + ";" + "null");
+    
   }
-//  delay(1);
+  delay(1);
 }

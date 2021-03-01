@@ -115,7 +115,7 @@ class wheelVelocity:
         cmd_linear_right = vel.linear.x - ((vel.angular.z * wheelsSeparation) / 2.0)
         cmd_angular_left = cmd_linear_left / (diameter / 2)
         cmd_angular_right = cmd_linear_right / (diameter / 2)
-        print("cmd_angular_left: ", cmd_angular_left, "cmd_angular_right: ", cmd_angular_right)
+        #print("cmd_angular_left: ", cmd_angular_left, "cmd_angular_right: ", cmd_angular_right)
         return cmd_angular_left, cmd_angular_right
 
     def direction(self, cmd_angular_left, cmd_angular_right):
