@@ -3,9 +3,6 @@
 #define CHANNELS 11
 #include <Adafruit_MCP4728.h>
 #include <Wire.h>
-#include "order.h"
-#include "slave.h"
-#include "parameters.h"
 Adafruit_MCP4728 mcp;
 
 // sdaPin 20, sclPin 21;
@@ -17,21 +14,20 @@ const byte rightBrackPin = 25, leftBrackPin = 24;
 const byte encLeftPinA = 2, encLeftPinB = 3;
 const byte encRghitPinA = 18, encRghitPinB = 19;
 long oldPositionL  = -0, oldPositionR  = -0;
-float D = 0.1651, wheelsSeparation = 0.42; //[m]
-int pulsesPerRev = 60;
+const float D = 0.1651, wheelsSeparation = 0.42; //[m]
+const int pulsesPerRev = 60;
 float duration = 0.1;  //  [sec]
 double oldTime = 0, last_cmd_time = 0;
-int velMaxVal = 4000;
+const int velMaxVal = 4000;
 const byte debug = 0;
 const int max_rem_val = 1810 ,min_rem_val = 1166;
-int norm_factor = (max_rem_val - min_rem_val) / 2;
+const int norm_factor = (max_rem_val - min_rem_val) / 2;
 const int mid_rem_val = 1470;
 int cmd_motor_left = 0, cmd_motor_right = 0;
 float linearCmdVal, angularCmdVal;
 bool direcLeftOld = true;
 bool direcRightOld = true;
-int minVelCmd = 80;
-
+const int minVelCmd = 80;
 String inputString = "";         // a String to hold incoming data
 bool stringComplete = false;  // whether the string is complete
 
@@ -185,7 +181,7 @@ void loop() {
     angularCmdVal = (float)pulseIn(PWMAngularPin, HIGH);
     if (debug==1)
     {
-      
+      Serial2.println("Debug;controllerPWMPin: linearCmdVal - " + (String)(linearCmdVal) + " , angularCmdVal - " + (String)(angularCmdVal));
     }
     if (linearCmdVal == 0 || angularCmdVal == 0){
       linearCmdVal = 0;
@@ -204,7 +200,7 @@ void loop() {
     float cmdLeft = (linearCmdVal + angularCmdVal) / 2;
     if (debug==1)
     {
-      Serial2.println((String)(cmdRight) + " , " + (String)(cmdLeft));
+      Serial2.println("Debug;cmd: cmdRight - " + (String)(cmdRight) + " , cmdLeft - " + (String)(cmdLeft));
     }
     drive(cmdLeft, cmdRight);
   }
@@ -212,7 +208,10 @@ void loop() {
   {
     // print the string when a newline arrives:
     if (stringComplete) {
-      Serial2.println(inputString);
+      if (debug==1)
+      {
+        Serial2.println("Debug;inputString: " + inputString);
+      }
       cmd_motor_left = getValue((String)inputString, ';', 0).toInt();
       cmd_motor_right = getValue((String)inputString, ';', 1).toInt();
       // clear the string:
@@ -258,8 +257,12 @@ void loop() {
 
     double x = dist * cos(theta);  //[m]
     double y = dist * sin(theta);  //[m]
-
-    Serial2.println(String("null") + ";" + String(angularVelLKF.vel_kf,8) + ";" + String(angularVelRKF.vel_kf,8) + ";" + "null");
+    if (debug==1)
+    {
+      Serial2.println("wheelAngularVel;" + String(angularVelLKF.vel_kf,8) + ";" + String(angularVelRKF.vel_kf,8) + '\n');
+    }
+    Serial2.print((String)"Odom;" + "Twist;" + "angular;" + String(omega,8) + ";linear;" + String(linearV,8));
+    Serial2.println((String)";Pose;" + "x;" + String(x,8) + ";y;" + String(y,8) + ";" + '\n');
     
   }
   delay(1);
