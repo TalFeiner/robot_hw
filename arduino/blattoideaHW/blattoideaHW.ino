@@ -5,31 +5,40 @@
 #include <Wire.h>
 Adafruit_MCP4728 mcp;
 
+const byte debug = 0;
+const float durationEncoder = 0.1, maxCmdDuration = 0.5, pidDuration = 0.1;  //  [sec]
+const int minVelCmd = 80;
+const int velMaxVal = 4000;
+const float D = 0.1651, wheelsSeparation = 0.42; //[m]
+const int pulsesPerRev = 60;
+const int max_rem_val = 1810 ,min_rem_val = 1166;
+const int norm_factor = (max_rem_val - min_rem_val) / 2;
+const int mid_rem_val = 1470;
+const float kp =90, ki = 30;
+
+// serial2 pins- RX: 17, TX: 16
+// serial1 pins- RX: 0, TX: 1
 // sdaPin 20, sclPin 21;
+// Mega interrupt 2, 3, 18, 19, 20, 21
 const byte buttonPin = 15;
 const byte PWMLinearPin = 45, PWMAngularPin = 46;
 const byte directionRightPin = 29, directionLeftPin = 28;
 const byte rightBrackPin = 25, leftBrackPin = 24;
-//  Mega interrupt 2, 3, 18, 19, 20, 21
 const byte encLeftPinA = 2, encLeftPinB = 3;
 const byte encRghitPinA = 18, encRghitPinB = 19;
-long oldPositionL  = -0, oldPositionR  = -0;
-const float D = 0.1651, wheelsSeparation = 0.42; //[m]
-const int pulsesPerRev = 60;
-float duration = 0.1;  //  [sec]
-double oldTime = 0, last_cmd_time = 0;
-const int velMaxVal = 4000;
-const byte debug = 0;
-const int max_rem_val = 1810 ,min_rem_val = 1166;
-const int norm_factor = (max_rem_val - min_rem_val) / 2;
-const int mid_rem_val = 1470;
-int cmd_motor_left = 0, cmd_motor_right = 0;
-float linearCmdVal, angularCmdVal;
+
 bool direcLeftOld = true;
 bool direcRightOld = true;
-const int minVelCmd = 80;
-String inputString = "";         // a String to hold incoming data
 bool stringComplete = false;  // whether the string is complete
+float setPointTemp = 0;
+
+long oldPositionL  = -0, oldPositionR  = -0;
+double oldTimeEncoder = 0, last_cmd_time = 0, lastPidTime = 0;
+float cmd_motor_left = 0, cmd_motor_right = 0;
+float linearCmdVal, angularCmdVal;
+String inputString = "";         // a String to hold incoming data
+double integralLeft = 0, integralRight = 0;
+
 
 struct kalman {
    double vel_kf;
@@ -47,6 +56,7 @@ String resetError = "false";
 Encoder encL(encLeftPinA, encLeftPinB);
 Encoder encR(encRghitPinA, encRghitPinB);
 
+
 struct kalman kalmanFunc(double vel, struct kalman KF, double r_kf, double q_kf){
   KF.p_kf = KF.p_kf + q_kf;
   double y = vel - KF.vel_kf;
@@ -56,6 +66,54 @@ struct kalman kalmanFunc(double vel, struct kalman KF, double r_kf, double q_kf)
   KF.p_kf = (1-k)*KF.p_kf;
   return KF;
 }
+
+
+int pidCalc(float setPoint, double vel, double dt, double integral) {
+  bool integralCalc = true;
+  if(setPointTemp != 0){
+    setPoint = setPointTemp;
+    setPointTemp = 0;
+    integralCalc = false;
+  }
+  float error = setPoint - vel;
+  if(integralCalc)
+    integral += error *  dt;
+  int cmd = kp * error + ki * integral;
+  if(abs(cmd) > velMaxVal) {
+    if(cmd > 0){
+      cmd = velMaxVal;
+      setPointTemp = velMaxVal;
+    }
+    else {
+      cmd = -velMaxVal;
+      setPointTemp = -velMaxVal;
+    }
+    if(ki != 0) {
+      integral = (1 / ki) * (setPointTemp - (kp * error));
+    }
+    else {
+      integralLeft = 0;
+    }
+  }
+  else if(abs(cmd) < minVelCmd) {
+    if(cmd > 0){
+      cmd = minVelCmd;
+      setPointTemp = minVelCmd;
+    }
+    else {
+      cmd = -minVelCmd;
+      setPointTemp = -minVelCmd;
+    }
+    if(ki != 0) {
+      integral = (1 / ki) * (setPointTemp - (kp * error));
+    }
+    else {
+      integral = 0;
+    }
+  }
+  return cmd;
+}
+
 
 void serialEvent() {
   while (Serial.available()) {
@@ -70,6 +128,7 @@ void serialEvent() {
     }
   }
 }
+
 
 String getValue(String data, char separator, int index)
 {
@@ -87,10 +146,12 @@ String getValue(String data, char separator, int index)
     return found > index ? data.substring(strIndex[0], strIndex[1]) : "";
 }
 
+
 double wheelAngularVel(long newPosition, long oldPosition, double dt){
   double dtheta = (double)(2 * PI) * (double)((double)((double)newPosition - (double)oldPosition) / (double)pulsesPerRev);  //  [rad]
   return dtheta/dt;  //  [rad/sec]
 }
+
 
 void drive  (int leftVelCmd, int rightVelCmd) {
   if ((abs(leftVelCmd) > minVelCmd) || (abs(rightVelCmd) > minVelCmd))  {
@@ -149,11 +210,13 @@ void drive  (int leftVelCmd, int rightVelCmd) {
   }
 }
 
+
 void setup() {
   Serial.begin(115200);
+  Serial2.begin(115200);
   // reserve 2 bytes for the inputString:
   inputString.reserve(2);
-  Serial2.begin(115200);
+
   while (!Serial)
     delay(10); // will pause Zero, Leonardo, etc until serial console opens
   Serial2.println("Adafruit MCP4728 test!");
@@ -172,72 +235,20 @@ void setup() {
 
   pinMode(directionRightPin, OUTPUT);
   pinMode(directionLeftPin, OUTPUT);
-  oldTime = millis();
+
+  oldTimeEncoder = millis();
+  lastPidTime = millis();
 }
 
-void loop() {
-  if(digitalRead(buttonPin) == HIGH) {
-    linearCmdVal = (float)pulseIn(PWMLinearPin, HIGH);
-    angularCmdVal = (float)pulseIn(PWMAngularPin, HIGH);
-    if (debug==1)
-    {
-      Serial2.println("Debug;controllerPWMPin: linearCmdVal - " + (String)(linearCmdVal) + " , angularCmdVal - " + (String)(angularCmdVal));
-    }
-    if (linearCmdVal == 0 || angularCmdVal == 0){
-      linearCmdVal = 0;
-      angularCmdVal = 0;
-    }
-    else{
-      linearCmdVal = ((linearCmdVal - mid_rem_val) / norm_factor) * velMaxVal;
-      angularCmdVal = ((angularCmdVal - mid_rem_val) / norm_factor) * velMaxVal;
-      if (linearCmdVal > velMaxVal) linearCmdVal = velMaxVal;
-      if (linearCmdVal < -velMaxVal) linearCmdVal = -velMaxVal;
-      if (angularCmdVal > velMaxVal) angularCmdVal = velMaxVal;
-      if (angularCmdVal < -velMaxVal) angularCmdVal = -velMaxVal;
-    }
-    
-    float cmdRight = (linearCmdVal - angularCmdVal) / 2;
-    float cmdLeft = (linearCmdVal + angularCmdVal) / 2;
-    if (debug==1)
-    {
-      Serial2.println("Debug;cmd: cmdRight - " + (String)(cmdRight) + " , cmdLeft - " + (String)(cmdLeft));
-    }
-    drive(cmdLeft, cmdRight);
-  }
-  else
-  {
-    // print the string when a newline arrives:
-    if (stringComplete) {
-      if (debug==1)
-      {
-        Serial2.println("Debug;inputString: " + inputString);
-      }
-      cmd_motor_left = getValue((String)inputString, ';', 0).toInt();
-      cmd_motor_right = getValue((String)inputString, ';', 1).toInt();
-      // clear the string:
-      inputString = "";
-      stringComplete = false;
-      last_cmd_time = millis();
-    }
-    double dt = (millis() - last_cmd_time) / 1000;  //  [sec]
-    if (dt < 0.5){
-      drive(cmd_motor_left, cmd_motor_right);
-      //delay(10);
-    }
-    else
-    {
-      drive(0, 0);
-    }
-    
-  }
 
-  double dt = (millis() - oldTime) / 1000;  //  [sec]
-  if (dt >= duration){
-    oldTime = millis();
-    
+void loop() {
+  double dt = (millis() - oldTimeEncoder) / 1000;  //  [sec]
+  if(dt >= durationEncoder) {
+    oldTimeEncoder = millis();
+
     long newPositionL = encL.read();
     long newPositionR = encR.read();
-    
+
     double angularVelL = -wheelAngularVel(newPositionL, oldPositionL, dt);  //  [rad/sec]
     double angularVelR = wheelAngularVel(newPositionR, oldPositionR, dt);  //  [rad/sec]
     oldPositionL = newPositionL;
@@ -245,7 +256,7 @@ void loop() {
 
     angularVelLKF = kalmanFunc (angularVelL, angularVelLKF, rleftR_kf, leftQ_kf);
     angularVelRKF = kalmanFunc (angularVelR, angularVelRKF, rightR_kf, rightQ_kf);
-    
+
     double linearVelL = (D / 2) * angularVelLKF.vel_kf; //[m/sec]
     double linearVelR = (D / 2) * angularVelRKF.vel_kf;  //[m/sec]
 
@@ -257,13 +268,77 @@ void loop() {
 
     double x = dist * cos(theta);  //[m]
     double y = dist * sin(theta);  //[m]
+
     if (debug==1)
     {
       Serial2.println("wheelAngularVel;" + String(angularVelLKF.vel_kf,8) + ";" + String(angularVelRKF.vel_kf,8) + '\n');
     }
     Serial2.print((String)"Odom;" + "Twist;" + "angular;" + String(omega,8) + ";linear;" + String(linearV,8));
     Serial2.println((String)";Pose;" + "x;" + String(x,8) + ";y;" + String(y,8) + ";" + '\n');
+  }
+
+  if(digitalRead(buttonPin) == HIGH) {
+    linearCmdVal = (float)pulseIn(PWMLinearPin, HIGH);
+    angularCmdVal = (float)pulseIn(PWMAngularPin, HIGH);
+
+    if (debug==1)
+    {
+      Serial2.println("Debug;controllerPWMPin: linearCmdVal - " + (String)(linearCmdVal) + " , angularCmdVal - " + (String)(angularCmdVal));
+    }
+
+    if (linearCmdVal == 0 || angularCmdVal == 0){
+      linearCmdVal = 0;
+      angularCmdVal = 0;
+    }
+    else {
+      linearCmdVal = ((linearCmdVal - mid_rem_val) / norm_factor) * velMaxVal;
+      angularCmdVal = ((angularCmdVal - mid_rem_val) / norm_factor) * velMaxVal;
+      if (linearCmdVal > velMaxVal) linearCmdVal = velMaxVal;
+      if (linearCmdVal < -velMaxVal) linearCmdVal = -velMaxVal;
+      if (angularCmdVal > velMaxVal) angularCmdVal = velMaxVal;
+      if (angularCmdVal < -velMaxVal) angularCmdVal = -velMaxVal;
+    }
+
+    float cmdRight = (linearCmdVal - angularCmdVal) / 2;
+    float cmdLeft = (linearCmdVal + angularCmdVal) / 2;
+
+    if (debug==1)
+    {
+      Serial2.println("Debug;cmd: cmdRight - " + (String)(cmdRight) + " , cmdLeft - " + (String)(cmdLeft));
+    }
+
+    drive(cmdLeft, cmdRight);
+  }
+
+  else {
+    // print the string when a newline arrives:
+    if (stringComplete) {
+      if (debug==1)
+      {
+        Serial2.println("Debug;inputString: " + inputString);
+      }
+      cmd_motor_left = getValue((String)inputString, ';', 0).toFloat();
+      cmd_motor_right = getValue((String)inputString, ';', 1).toFloat();
+      // clear the string:
+      inputString = "";
+      stringComplete = false;
+      last_cmd_time = millis();
+    }
     
+    dt = (millis() - lastPidTime) / 1000;  //  [sec]
+    if (dt >= pidDuration) {
+      lastPidTime = millis();
+      cmd_motor_left = pidCalc(cmd_motor_left, angularVelLKF.vel_kf, dt, integralLeft);
+      cmd_motor_right = pidCalc(cmd_motor_right, angularVelRKF.vel_kf, dt, integralRight);
+    }
+
+    dt = (millis() - last_cmd_time) / 1000;  //  [sec]
+    if (dt < maxCmdDuration) {
+      drive((int)cmd_motor_left, (int)cmd_motor_right);
+    }
+    else {
+      drive(0, 0);
+    }
   }
   delay(1);
 }
