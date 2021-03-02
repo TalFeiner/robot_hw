@@ -68,7 +68,7 @@ struct kalman kalmanFunc(double vel, struct kalman KF, double r_kf, double q_kf)
 }
 
 
-int pidCalc(float setPoint, double vel, double dt, double integral) {
+int pidCalc(float setPoint, double vel, double dt, double &integral) {
   bool integralCalc = true;
   if(setPointTemp != 0){
     setPoint = setPointTemp;
