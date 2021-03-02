@@ -274,7 +274,7 @@ void loop() {
       Serial2.println("wheelAngularVel;" + String(angularVelLKF.vel_kf,8) + ";" + String(angularVelRKF.vel_kf,8) + '\n');
     }
     Serial2.print((String)"Odom;" + "Twist;" + "angular;" + String(omega,8) + ";linear;" + String(linearV,8));
-    Serial2.println((String)";Pose;" + "x;" + String(x,8) + ";y;" + String(y,8) + ";" + '\n');
+    Serial2.println((String)";Pose;" + "x;" + String(x,8) + ";y;" + String(y,8) + ";theta;" + String(theta,8) + ";" + '\n');
   }
 
   if(digitalRead(buttonPin) == HIGH) {
