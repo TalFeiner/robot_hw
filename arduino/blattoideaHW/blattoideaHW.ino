@@ -14,7 +14,7 @@ const int pulsesPerRev = 60;
 const int max_rem_val = 1810 ,min_rem_val = 1166;
 const int norm_factor = (max_rem_val - min_rem_val) / 2;
 const int mid_rem_val = 1470;
-const float kp =90, ki = 30;
+const float kp = 4000, ki = 1000;
 
 // serial2 pins- RX: 17, TX: 16
 // serial1 pins- RX: 0, TX: 1
@@ -37,7 +37,6 @@ double oldTimeEncoder = 0, last_cmd_time = 0, lastPidTime = 0;
 float cmd_motor_left = 0, cmd_motor_right = 0;
 float linearCmdVal, angularCmdVal;
 String inputString = "";         // a String to hold incoming data
-double integralLeft = 0, integralRight = 0;
 
 
 struct kalman {
@@ -45,10 +44,19 @@ struct kalman {
    double p_kf;
 };
 
+struct pidStruct {
+   int cmd;
+   double setPoint;
+   double integral;
+};
+
 double rleftR_kf = 1.1, leftQ_kf = 0.5;
 double rightR_kf = 1.1, rightQ_kf = 0.5;
 struct kalman angularVelLKF = {vel_kf: 0.0, p_kf: 1.0};
 struct kalman angularVelRKF = {vel_kf: 0.0, p_kf: 1.0};
+
+struct pidStruct pidLeft = {cmd: 0, setPoint: 0, integral: 0};
+struct pidStruct pidRghit = {cmd: 0, setPoint: 0, integral: 0};
 
 double dist = 0.0, theta = 0.0, distError = 0.0, thetaError = 0.0, oldDist = 0.0, oldTheta = 0.0, dDist = 0.001, dTheta = 0.01;
 String resetError = "false";
@@ -68,50 +76,34 @@ struct kalman kalmanFunc(double vel, struct kalman KF, double r_kf, double q_kf)
 }
 
 
-int pidCalc(float setPoint, double vel, double dt, double &integral) {
+struct pidStruct pidCalc(struct pidStruct pidS, double vel, double dt) {
   bool integralCalc = true;
   if(setPointTemp != 0){
-    setPoint = setPointTemp;
+    pidS.setPoint = setPointTemp;
     setPointTemp = 0;
     integralCalc = false;
   }
-  float error = setPoint - vel;
+  float error = pidS.setPoint - vel;
   if(integralCalc)
-    integral += error *  dt;
-  int cmd = kp * error + ki * integral;
-  if(abs(cmd) > velMaxVal) {
-    if(cmd > 0){
-      cmd = velMaxVal;
+    pidS.integral += error *  dt;
+  pidS.cmd = kp * error + ki * pidS.integral;
+  if(abs(pidS.cmd) > velMaxVal) {
+    if(pidS.cmd > 0){
+      pidS.cmd = velMaxVal;
       setPointTemp = velMaxVal;
     }
     else {
-      cmd = -velMaxVal;
+      pidS.cmd = -velMaxVal;
       setPointTemp = -velMaxVal;
     }
     if(ki != 0) {
-      integral = (1 / ki) * (setPointTemp - (kp * error));
+      pidS.integral = (1 / ki) * (setPointTemp - (kp * error));
     }
     else {
-      integralLeft = 0;
+      pidS.integral = 0;
     }
   }
-  else if(abs(cmd) < minVelCmd) {
-    if(cmd > 0){
-      cmd = minVelCmd;
-      setPointTemp = minVelCmd;
-    }
-    else {
-      cmd = -minVelCmd;
-      setPointTemp = -minVelCmd;
-    }
-    if(ki != 0) {
-      integral = (1 / ki) * (setPointTemp - (kp * error));
-    }
-    else {
-      integral = 0;
-    }
-  }
-  return cmd;
+  return pidS;
 }
 
 
@@ -317,23 +309,31 @@ void loop() {
       {
         Serial2.println("Debug;inputString: " + inputString);
       }
-      cmd_motor_left = getValue((String)inputString, ';', 0).toFloat();
-      cmd_motor_right = getValue((String)inputString, ';', 1).toFloat();
+      cmd_motor_left = getValue((String)inputString, ';', 0).toInt();
+      cmd_motor_right = getValue((String)inputString, ';', 1).toInt();
       // clear the string:
       inputString = "";
       stringComplete = false;
       last_cmd_time = millis();
     }
     
-    dt = (millis() - lastPidTime) / 1000;  //  [sec]
-    if (dt >= pidDuration) {
-      lastPidTime = millis();
-      cmd_motor_left = pidCalc(cmd_motor_left, angularVelLKF.vel_kf, dt, integralLeft);
-      cmd_motor_right = pidCalc(cmd_motor_right, angularVelRKF.vel_kf, dt, integralRight);
-    }
+//    dt = (millis() - lastPidTime) / 1000;  //  [sec]
+//    if (dt >= pidDuration) {
+//      lastPidTime = millis();
+//      pidLeft.setPoint = cmd_motor_left;
+//      pidRghit.setPoint = cmd_motor_right;
+//      pidLeft = pidCalc(pidLeft, angularVelLKF.vel_kf, dt);
+//      pidRghit = pidCalc(pidRghit, angularVelRKF.vel_kf, dt);
+//      cmd_motor_left = pidLeft.cmd;
+//      cmd_motor_right = pidRghit.cmd;
+//    }
 
     dt = (millis() - last_cmd_time) / 1000;  //  [sec]
     if (dt < maxCmdDuration) {
+      if (cmd_motor_left > velMaxVal) cmd_motor_left = velMaxVal;
+      if (cmd_motor_left < -velMaxVal) cmd_motor_left = -velMaxVal;
+      if (cmd_motor_right > velMaxVal) cmd_motor_right = velMaxVal;
+      if (cmd_motor_right < -velMaxVal) cmd_motor_right = -velMaxVal;
       drive((int)cmd_motor_left, (int)cmd_motor_right);
     }
     else {
