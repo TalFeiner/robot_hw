@@ -14,7 +14,7 @@ const int pulsesPerRev = 60;
 const int max_rem_val = 1810 ,min_rem_val = 1166;
 const int norm_factor = (max_rem_val - min_rem_val) / 2;
 const int mid_rem_val = 1470;
-const float kp = 4000, ki = 1000;
+const float kp = 200, ki = 400;
 
 // serial2 pins- RX: 17, TX: 16
 // serial1 pins- RX: 0, TX: 1
@@ -34,7 +34,7 @@ float setPointTemp = 0;
 
 long oldPositionL  = -0, oldPositionR  = -0;
 double oldTimeEncoder = 0, last_cmd_time = 0, lastPidTime = 0;
-float cmd_motor_left = 0, cmd_motor_right = 0;
+double cmd_motor_left = 0, cmd_motor_right = 0;
 float linearCmdVal, angularCmdVal;
 String inputString = "";         // a String to hold incoming data
 
@@ -83,24 +83,25 @@ struct pidStruct pidCalc(struct pidStruct pidS, double vel, double dt) {
     setPointTemp = 0;
     integralCalc = false;
   }
-  float error = pidS.setPoint - vel;
-  if(integralCalc)
-    pidS.integral += error *  dt;
-  pidS.cmd = kp * error + ki * pidS.integral;
-  if(abs(pidS.cmd) > velMaxVal) {
-    if(pidS.cmd > 0){
-      pidS.cmd = velMaxVal;
-      setPointTemp = velMaxVal;
-    }
-    else {
-      pidS.cmd = -velMaxVal;
-      setPointTemp = -velMaxVal;
-    }
-    if(ki != 0) {
-      pidS.integral = (1 / ki) * (setPointTemp - (kp * error));
-    }
-    else {
-      pidS.integral = 0;
+  double error = pidS.setPoint - vel;
+  if(abs(error) > (abs(pidS.setPoint)/10)){
+    if(integralCalc) pidS.integral = pidS.integral + error *  dt;
+    pidS.cmd = kp * pidS.setPoint + ki * pidS.integral;
+    if(abs(pidS.cmd) > velMaxVal) {
+      if(pidS.cmd > 0){
+        pidS.cmd = velMaxVal;
+        setPointTemp = velMaxVal;
+      }
+      else {
+        pidS.cmd = -velMaxVal;
+        setPointTemp = -velMaxVal;
+      }
+      if(ki != 0) {
+        pidS.integral = (1 / ki) * (setPointTemp - (kp * pidS.setPoint));
+      }
+      else {
+        pidS.integral = 0;
+      }
     }
   }
   return pidS;
@@ -309,8 +310,8 @@ void loop() {
       {
         Serial2.println("Debug;inputString: " + inputString);
       }
-      cmd_motor_left = getValue((String)inputString, ';', 0).toInt();
-      cmd_motor_right = getValue((String)inputString, ';', 1).toInt();
+      cmd_motor_left = getValue((String)inputString, ';', 0).toDouble();
+      cmd_motor_right = getValue((String)inputString, ';', 1).toDouble();
       // clear the string:
       inputString = "";
       stringComplete = false;
