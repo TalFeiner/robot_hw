@@ -7,7 +7,7 @@ from scipy.spatial.transform import Rotation
 import serial
 from serial.tools import list_ports
 
-global ser, ser2, debug, odom_pub, seq
+global ser, ser2, debug, odom_pub, seq, count_cmd_cb
 debug = True
 seq = 0
 
@@ -27,16 +27,34 @@ def odom(line):
         y_pose = line_list[y_pose_idx]
         theta = line_list[theta_idx]
 
+        xVar_pose_idx = line_list.index("xVar") + 1
+        yVar_pose_idx = line_list.index("yVar") + 1
+        thetaVar_idx = line_list.index("thetaVar") + 1
+        angularVar_vel_idx = line_list.index("angularVar") + 1
+        linearVar_vel_idx = line_list.index("linearVar") + 1
+        angularVar_vel = line_list[angularVar_vel_idx]
+        linearVar_vel = line_list[linearVar_vel_idx]
+        xVar_pose = line_list[xVar_pose_idx]
+        yVar_pose = line_list[yVar_pose_idx]
+        thetaVar = line_list[thetaVar_idx]
+
         odom_msg = Odometry()
+        odom_msg.child_frame_id = "world"
         odom_msg.header.seq = seq
         odom_msg.header.stamp = rospy.Time.now()
-        odom_msg.header.frame_id = "base_footprint"
+        odom_msg.header.frame_id = "world"
         odom_msg.pose.pose.position.x = float(x_pose)
         odom_msg.pose.pose.position.x = float(y_pose)
         quat = Rotation.from_euler('z', float(theta)).as_quat()
         odom_msg.pose.pose.orientation = Quaternion(*quat)
         odom_msg.twist.twist.linear.x = float(linear_vel)
         odom_msg.twist.twist.angular.z = float(angular_vel)
+
+        odom_msg.pose.covariance[0] = float(xVar_pose)
+        odom_msg.pose.covariance[7] = float(yVar_pose)
+        odom_msg.pose.covariance[35] = float(thetaVar)
+        odom_msg.twist.covariance[0] = float(linearVar_vel)
+        odom_msg.twist.covariance[35] = float(angularVar_vel)
         seq += seq
         odom_pub.publish(odom_msg)
 
@@ -124,26 +142,40 @@ def open_serial_port():
 
 
 def cmd_vel_cb(vel):
-    global ser
+    global ser, count_cmd_cb
     cmd_angular_left, cmd_angular_right = cmd_vel2angular_wheel_velocity(vel)
-    cmd_angular_left = int(cmd_angular_left*200)
-    cmd_angular_right = int(cmd_angular_right*200)
-    send = str(str(cmd_angular_left) + str(";") + str(cmd_angular_right) + '\n')
-    ser.write(bytes(send, encoding='utf8'))
+    cmd_angular_left = int(cmd_angular_left * 200)
+    cmd_angular_right = int(cmd_angular_right * 200)
+    send = str(str("cmdVel") + str(";") + str(cmd_angular_left) + str(";") + str(cmd_angular_right) + '\n')
+    try:
+        ser.write(bytes(send, encoding='utf8'))
+    except:
+        pass
     if(debug):
         print("sending: " + str(send))
-    ser.flushOutput()
+    count_cmd_cb += 1
+    if(count % 10 == 0):
+        ser.flushOutput()
+        count_cmd_cb = 0
 
 
 rospy.init_node("blattoidea_hw_node", anonymous=True)
 open_serial_port()
+count_cmd_cb = 0
 rospy.Subscriber("/cmd_vel", Twist, cmd_vel_cb)
 odom_pub = rospy.Publisher("/blattoidea_odom", Odometry, queue_size=4)
+count = 0
 while not rospy.is_shutdown():
     if(ser2.in_waiting > 0):
         line = ser2.readline().decode('utf-8')
-        ser2.flushInput()
-        odom(line)
+        try:
+            odom(line)
+        except:
+            pass
         if(debug):
             print("msg - ", line)
     rospy.sleep(0.005)
+    count += 1
+    if(count % 10 == 0):
+        ser2.flushInput()
+        count = 0
