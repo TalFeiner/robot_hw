@@ -8,7 +8,7 @@
 	</node>
 
    <node name="blattoidea_cmd_vel" pkg="blattoidea_hw" type="blattoidea_cmd_vel_bridge.py" output="screen">
-        <param name="port" value="/dev/ttyUSB0" /> <!--arduino0-->
+        <param name="port" value="/dev/arduino0" />
         <param name="baud" value="115200" />
         <param name="port2" value="/dev/arduino1" />
         <param name="baud2" value="115200" />
