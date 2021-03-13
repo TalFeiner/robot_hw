@@ -264,7 +264,12 @@ void drive  (int leftVelCmd, int rightVelCmd) {
       direcRight = direcRightOld;
     }
   
-    if (direcLeft != direcLeftOld) {
+    if ((direcLeft != direcLeftOld) && (direcRight != direcRightOld)) {
+      stope();
+      direcLeftOld = direcLeft;
+      direcRightOld = direcRight;
+    }
+    else if (direcLeft != direcLeftOld) {
       digitalWrite(leftBrackPin, HIGH);
       mcp.setChannelValue(MCP4728_CHANNEL_A, (int)0);  //  lfet
       direcLeftOld = direcLeft;
@@ -273,7 +278,7 @@ void drive  (int leftVelCmd, int rightVelCmd) {
       angularVelLKF.resetVar = true;
       delay(200);
     }
-    if (direcRight != direcRightOld) {
+    else if (direcRight != direcRightOld) {
       digitalWrite(rightBrackPin, HIGH);
       mcp.setChannelValue(MCP4728_CHANNEL_B, (int)0);  //  right
       direcRightOld = direcRight;
@@ -422,7 +427,7 @@ void loop() {
     dt = (millis() - oldTimeOdom) / 1000;  //  [sec]
     if(dt >= durationOdom) {
       oldTimeOdom = millis();
-      if (1)
+      if (debug==1)
       {
         Serial2.println("wheelAngularVel;" + String(angularVelLKF.vel_kf,8) + ";" + String(angularVelRKF.vel_kf,8) + '\n');
       }
@@ -510,28 +515,28 @@ void loop() {
 //      }
 //    }
 
-  //   int motor_left;
-  //   int motor_right;
-  //   if (fabs(cmd_motor_left) == 0 && fabs(cmd_motor_right) == 0) stope();
-  //   else {
-  //    resetPidFlag = true;
-  //    dt = (millis() - lastPidTime) / 1000;  //  [sec]
-  //    if (dt >= pidDuration) {
-  //      lastPidTime = millis();
-  //      pidLeftP.setPoint = cmd_motor_left;
-  //      pidRghitP.setPoint = cmd_motor_right;
-  //      pidLeftP = pidPose(pidLeftP, angularVelLKF.vel_kf, dt);
-  //      pidRghitP = pidPose(pidRghitP, angularVelRKF.vel_kf, dt);
-  //      motor_left = (int)pidLeftP.cmd;
-  //      motor_right = (int)pidRghitP.cmd;
-  //      if (debug==1){
-  //        Serial2.println("Debug;cmd: cmdRight - " + (String)(motor_right) + " , " + (String)(angularVelRKF.vel_kf) + " , cmdLeft - " + (String)(motor_left) + " , " + (String)(angularVelLKF.vel_kf));
-  //      }
-  //    }
-  //  }
+    int motor_left;
+    int motor_right;
+    if (fabs(cmd_motor_left) == 0 && fabs(cmd_motor_right) == 0) stope();
+    else {
+     resetPidFlag = true;
+     dt = (millis() - lastPidTime) / 1000;  //  [sec]
+     if (dt >= pidDuration) {
+       lastPidTime = millis();
+       pidLeftP.setPoint = cmd_motor_left;
+       pidRghitP.setPoint = cmd_motor_right;
+       pidLeftP = pidPose(pidLeftP, angularVelLKF.vel_kf, dt);
+       pidRghitP = pidPose(pidRghitP, angularVelRKF.vel_kf, dt);
+       motor_left = (int)pidLeftP.cmd;
+       motor_right = (int)pidRghitP.cmd;
+       if (debug==1){
+         Serial2.println("Debug;cmd: cmdRight - " + (String)(motor_right) + " , " + (String)(angularVelRKF.vel_kf) + " , cmdLeft - " + (String)(motor_left) + " , " + (String)(angularVelLKF.vel_kf));
+       }
+     }
+   }
 
-    int motor_left = cmd_motor_left;
-    int motor_right = cmd_motor_right;
+    // int motor_left = cmd_motor_left;
+    // int motor_right = cmd_motor_right;
     dt = (millis() - last_cmd_time) / 1000;  //  [sec]
     if (dt < maxCmdDuration) {
       if (motor_left > cmdMaxVal) motor_left = cmdMaxVal;

@@ -144,8 +144,8 @@ def open_serial_port():
 def cmd_vel_cb(vel):
     global ser, count_cmd_cb
     cmd_angular_left, cmd_angular_right = cmd_vel2angular_wheel_velocity(vel)
-    cmd_angular_left = int(cmd_angular_left * 200)
-    cmd_angular_right = int(cmd_angular_right * 200)
+    cmd_angular_left = (cmd_angular_left)
+    cmd_angular_right = (cmd_angular_right)
     send = str(str("cmdVel") + str(";") + str(cmd_angular_left) + str(";") + str(cmd_angular_right) + '\n')
     try:
         ser.write(bytes(send, encoding='utf8'))
