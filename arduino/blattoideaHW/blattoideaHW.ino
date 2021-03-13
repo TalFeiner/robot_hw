@@ -7,13 +7,13 @@ const byte debug = 0;
 const float maxCmdDuration = 0.5, pidDuration = 0.1, durationEncoder = 0.1;  //  [sec]
 const float durationKF = durationEncoder, durationOdom = durationEncoder;  //  [sec]
 int minVelCmd = 80;
-const int velMaxVal = 4000;
+const int cmdMaxVal = 4000;
 const float D = 0.1651, wheelsSeparation = 0.42; //[m]
 const int pulsesPerRev = 60;
 const int max_rem_val = 1810 ,min_rem_val = 1166;
 const int norm_factor = (max_rem_val - min_rem_val) / 2;
 const int mid_rem_val = 1470;
-const float kp = 2, ki = 400, Ti = 1;
+const float kp = 40, ki = 100, kd = 0, Ti = 1;
 const float rleftR_kf = 1.1, leftQ_kf = 0.5;
 const float rightR_kf = 1.1, rightQ_kf = 0.5;
 
@@ -57,6 +57,7 @@ struct pidPoseStruct {
    int cmd;
    double setPoint;
    double integral;
+   double errorOld;
    bool pidReset;
 };
 
@@ -70,8 +71,8 @@ struct pidVelocityStruct {
 struct kalman angularVelLKF = {vel_kf: 0.0, p_kf: 1.0, sum: 0.0, velCov: 0.0, N: 1, resetVar: false};
 struct kalman angularVelRKF = {vel_kf: 0.0, p_kf: 1.0, sum: 0.0, velCov: 0.0, N: 1, resetVar: false};
 
-struct pidPoseStruct pidLeftP = {cmd: 0, setPoint: 0, integral: 0, pidReset: false};
-struct pidPoseStruct pidRghitP = {cmd: 0, setPoint: 0, integral: 0, pidReset: false};
+struct pidPoseStruct pidLeftP = {cmd: 0, setPoint: 0, integral: 0, errorOld: 0, pidReset: false};
+struct pidPoseStruct pidRghitP = {cmd: 0, setPoint: 0, integral: 0, errorOld: 0, pidReset: false};
 struct pidVelocityStruct pidLeftV = {cmd: 0, errorOld: 0, setPoint: 0, pidReset: false};
 struct pidVelocityStruct pidRghitV = {cmd: 0, errorOld: 0, setPoint: 0, pidReset: false};
 
@@ -117,11 +118,16 @@ struct kalman kalmanFunc(double vel, struct kalman KF, double r_kf, double q_kf)
 
 struct pidPoseStruct pidPose(struct pidPoseStruct pidS, double vel, double dt) {
   double error = 0;
+  double derivative = 0;
   bool integralCalc = true;
   bool errorCalc = true;
+  bool derivativeCalc = true;
   if(pidS.pidReset){
     pidS.integral = 0;
+    pidS.errorOld = 0;
     errorCalc = false;
+    derivativeCalc = false;
+    integralCalc = false;
     pidS.pidReset = false;
   }
   if(setPointTemp != 0){
@@ -131,15 +137,16 @@ struct pidPoseStruct pidPose(struct pidPoseStruct pidS, double vel, double dt) {
   }
   if(errorCalc) error = pidS.setPoint - vel;
   if(integralCalc) pidS.integral += error *  dt;
-  pidS.cmd = kp * error + ki * pidS.integral;
-  if(fabs(pidS.cmd) > velMaxVal) {
+  if(derivativeCalc) derivative = (error - pidS.errorOld) / dt;
+  pidS.cmd = kp * error + ki * pidS.integral + kd * derivative;
+  if(fabs(pidS.cmd) > cmdMaxVal) {
     if(pidS.cmd > 0){
-      pidS.cmd = velMaxVal;
-      setPointTemp = velMaxVal;
+      pidS.cmd = cmdMaxVal;
+      setPointTemp = cmdMaxVal;
     }
     else {
-      pidS.cmd = -velMaxVal;
-      setPointTemp = -velMaxVal;
+      pidS.cmd = -cmdMaxVal;
+      setPointTemp = -cmdMaxVal;
     }
     if(ki != 0) {
       pidS.integral += (1 / ki) * (setPointTemp - (kp * error));
@@ -241,14 +248,20 @@ void drive  (int leftVelCmd, int rightVelCmd) {
     if (leftVelCmd > 0) {
       direcLeft = true;
     }
-    else {
+    else if(leftVelCmd < 0){
       direcLeft = false;
+    }
+    else{
+      direcLeft = direcLeftOld;
     }
     if (rightVelCmd > 0) {
       direcRight = true;
     }
-    else {
+    else if(rightVelCmd < 0){
       direcRight = false;
+    }
+     else{
+      direcRight = direcRightOld;
     }
   
     if (direcLeft != direcLeftOld) {
@@ -409,7 +422,7 @@ void loop() {
     dt = (millis() - oldTimeOdom) / 1000;  //  [sec]
     if(dt >= durationOdom) {
       oldTimeOdom = millis();
-      if (debug==1)
+      if (1)
       {
         Serial2.println("wheelAngularVel;" + String(angularVelLKF.vel_kf,8) + ";" + String(angularVelRKF.vel_kf,8) + '\n');
       }
@@ -433,12 +446,12 @@ void loop() {
       angularCmdVal = 0;
     }
     else {
-      linearCmdVal = ((linearCmdVal - mid_rem_val) / norm_factor) * velMaxVal;
-      angularCmdVal = ((angularCmdVal - mid_rem_val) / norm_factor) * velMaxVal;
-      if (linearCmdVal > velMaxVal) linearCmdVal = velMaxVal;
-      if (linearCmdVal < -velMaxVal) linearCmdVal = -velMaxVal;
-      if (angularCmdVal > velMaxVal) angularCmdVal = velMaxVal;
-      if (angularCmdVal < -velMaxVal) angularCmdVal = -velMaxVal;
+      linearCmdVal = ((linearCmdVal - mid_rem_val) / norm_factor) * cmdMaxVal;
+      angularCmdVal = ((angularCmdVal - mid_rem_val) / norm_factor) * cmdMaxVal;
+      if (linearCmdVal > cmdMaxVal) linearCmdVal = cmdMaxVal;
+      if (linearCmdVal < -cmdMaxVal) linearCmdVal = -cmdMaxVal;
+      if (angularCmdVal > cmdMaxVal) angularCmdVal = cmdMaxVal;
+      if (angularCmdVal < -cmdMaxVal) angularCmdVal = -cmdMaxVal;
     }
 
     int cmdRight = (linearCmdVal - angularCmdVal) / 2;
@@ -497,32 +510,34 @@ void loop() {
 //      }
 //    }
 
-    int motor_left;
-    int motor_right;
-    if (fabs(cmd_motor_left) == 0 && fabs(cmd_motor_right) == 0) stope();
-    else {
-     resetPidFlag = true;
-     dt = (millis() - lastPidTime) / 1000;  //  [sec]
-     if (dt >= pidDuration) {
-       lastPidTime = millis();
-       pidLeftP.setPoint = cmd_motor_left;
-       pidRghitP.setPoint = cmd_motor_right;
-       pidLeftP = pidPose(pidLeftP, angularVelLKF.vel_kf, dt);
-       pidRghitP = pidPose(pidRghitP, angularVelRKF.vel_kf, dt);
-       motor_left = (int)pidLeftP.cmd;
-       motor_right = (int)pidRghitP.cmd;
-       if (debug==1){
-         Serial2.println("Debug;cmd: cmdRight - " + (String)(motor_right) + " , " + (String)(angularVelRKF.vel_kf) + " , cmdLeft - " + (String)(motor_left) + " , " + (String)(angularVelLKF.vel_kf));
-       }
-     }
-   }
+  //   int motor_left;
+  //   int motor_right;
+  //   if (fabs(cmd_motor_left) == 0 && fabs(cmd_motor_right) == 0) stope();
+  //   else {
+  //    resetPidFlag = true;
+  //    dt = (millis() - lastPidTime) / 1000;  //  [sec]
+  //    if (dt >= pidDuration) {
+  //      lastPidTime = millis();
+  //      pidLeftP.setPoint = cmd_motor_left;
+  //      pidRghitP.setPoint = cmd_motor_right;
+  //      pidLeftP = pidPose(pidLeftP, angularVelLKF.vel_kf, dt);
+  //      pidRghitP = pidPose(pidRghitP, angularVelRKF.vel_kf, dt);
+  //      motor_left = (int)pidLeftP.cmd;
+  //      motor_right = (int)pidRghitP.cmd;
+  //      if (debug==1){
+  //        Serial2.println("Debug;cmd: cmdRight - " + (String)(motor_right) + " , " + (String)(angularVelRKF.vel_kf) + " , cmdLeft - " + (String)(motor_left) + " , " + (String)(angularVelLKF.vel_kf));
+  //      }
+  //    }
+  //  }
 
+    int motor_left = cmd_motor_left;
+    int motor_right = cmd_motor_right;
     dt = (millis() - last_cmd_time) / 1000;  //  [sec]
     if (dt < maxCmdDuration) {
-      if (motor_left > velMaxVal) motor_left = velMaxVal;
-      if (motor_left < -velMaxVal) motor_left = -velMaxVal;
-      if (motor_right > velMaxVal) motor_right = velMaxVal;
-      if (motor_right < -velMaxVal) motor_right = -velMaxVal;
+      if (motor_left > cmdMaxVal) motor_left = cmdMaxVal;
+      if (motor_left < -cmdMaxVal) motor_left = -cmdMaxVal;
+      if (motor_right > cmdMaxVal) motor_right = cmdMaxVal;
+      if (motor_right < -cmdMaxVal) motor_right = -cmdMaxVal;
       drive((int)motor_left, (int)motor_right);
     }
     else stope();

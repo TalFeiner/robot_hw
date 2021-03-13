@@ -167,13 +167,13 @@ odom_pub = rospy.Publisher("/blattoidea_odom", Odometry, queue_size=4)
 count = 0
 while not rospy.is_shutdown():
     if(ser2.in_waiting > 0):
-        line = ser2.readline().decode('utf-8')
         try:
+            line = ser2.readline().decode('utf-8')
             odom(line)
+            if(debug):
+                print("msg - ", line)
         except:
             pass
-        if(debug):
-            print("msg - ", line)
     rospy.sleep(0.005)
     count += 1
     if(count % 10 == 0):
