@@ -1,8 +1,6 @@
 #define ENCODER_OPTIMIZE_INTERRUPTS
 #include <Encoder.h>
-#define CHANNELS 11
 #include <Adafruit_MCP4728.h>
-#include <Wire.h>
 Adafruit_MCP4728 mcp;
 
 const byte debug = 0;
@@ -134,7 +132,7 @@ struct pidPoseStruct pidPose(struct pidPoseStruct pidS, double vel, double dt) {
   if(errorCalc) error = pidS.setPoint - vel;
   if(integralCalc) pidS.integral += error *  dt;
   pidS.cmd = kp * error + ki * pidS.integral;
-  if(abs(pidS.cmd) > velMaxVal) {
+  if(fabs(pidS.cmd) > velMaxVal) {
     if(pidS.cmd > 0){
       pidS.cmd = velMaxVal;
       setPointTemp = velMaxVal;
@@ -209,7 +207,7 @@ double wheelAngularVel(long newPosition, long oldPosition, double dt){
 
 
 void stope(bool emergencyStope = false){
-  while((abs(angularVelLKF.vel_kf) > 0.001 || abs(angularVelRKF.vel_kf) > 0.001) && emergencyStope) {
+  while((fabs(angularVelLKF.vel_kf) > 0.001 || fabs(angularVelRKF.vel_kf) > 0.001) && emergencyStope) {
     digitalWrite(rightBrackPin, HIGH);
     digitalWrite(leftBrackPin, HIGH);
     mcp.setChannelValue(MCP4728_CHANNEL_A, (int)0);  //  lfet
@@ -225,8 +223,10 @@ void stope(bool emergencyStope = false){
   mcp.setChannelValue(MCP4728_CHANNEL_B, (int)0);  //  right
   if(resetPidFlag){
     pidRghitV.pidReset = true;
+    pidRghitP.pidReset = true;
     angularVelRKF.resetVar = true;
     pidLeftV.pidReset = true;
+    pidLeftP.pidReset = true;
     angularVelLKF.resetVar = true;
     resetPidFlag = false;
   }
@@ -235,7 +235,6 @@ void stope(bool emergencyStope = false){
 
 
 void drive  (int leftVelCmd, int rightVelCmd) {
-  if ((abs(leftVelCmd) > minVelCmd) || (abs(rightVelCmd) > minVelCmd)) {
     bool direcLeft;
     bool direcRight;
     
@@ -257,6 +256,7 @@ void drive  (int leftVelCmd, int rightVelCmd) {
       mcp.setChannelValue(MCP4728_CHANNEL_A, (int)0);  //  lfet
       direcLeftOld = direcLeft;
       pidLeftV.pidReset = true;
+      pidLeftP.pidReset = true;
       angularVelLKF.resetVar = true;
       delay(200);
     }
@@ -265,6 +265,7 @@ void drive  (int leftVelCmd, int rightVelCmd) {
       mcp.setChannelValue(MCP4728_CHANNEL_B, (int)0);  //  right
       direcRightOld = direcRight;
       pidRghitV.pidReset = true;
+      pidRghitP.pidReset = true;
       angularVelRKF.resetVar = true;
       delay(200);
     }
@@ -289,13 +290,6 @@ void drive  (int leftVelCmd, int rightVelCmd) {
     digitalWrite(leftBrackPin, LOW);
     mcp.setChannelValue(MCP4728_CHANNEL_A, (int)leftVelCmd);  //  lfet
     mcp.setChannelValue(MCP4728_CHANNEL_B, (int)rightVelCmd);  //  right
-  }
-  else {
-    digitalWrite(rightBrackPin, LOW);
-    digitalWrite(leftBrackPin, LOW);
-    mcp.setChannelValue(MCP4728_CHANNEL_A, (int)0);  //  lfet
-    mcp.setChannelValue(MCP4728_CHANNEL_B, (int)0);  //  right
-  }
 }
 
 
@@ -454,10 +448,16 @@ void loop() {
     {
       Serial2.println("Debug;cmd: cmdRight - " + (String)(cmdRight) + " , cmdLeft - " + (String)(cmdLeft));
     }
-
-    drive(cmdLeft, cmdRight);
+    if ((fabs(cmdLeft) > minVelCmd) || (fabs(cmdRight) > minVelCmd)) {
+      drive(cmdLeft, cmdRight);
+      }
+  else {
+    digitalWrite(rightBrackPin, LOW);
+    digitalWrite(leftBrackPin, LOW);
+    mcp.setChannelValue(MCP4728_CHANNEL_A, (int)0);  //  lfet
+    mcp.setChannelValue(MCP4728_CHANNEL_B, (int)0);  //  right
   }
-
+  }
   else {
     // print the string when a newline arrives:
     if (stringComplete) {
@@ -479,7 +479,7 @@ void loop() {
       stringComplete = false;
     }
 
-//    if (abs(cmd_motor_left) == 0 && abs(cmd_motor_right) == 0) stope();
+//    if (fabs(cmd_motor_left) == 0 && fabs(cmd_motor_right) == 0) stope();
 //    else {
 //      resetPidFlag = true;
 //      dt = (millis() - lastPidTime) / 1000;  //  [sec]
@@ -489,21 +489,41 @@ void loop() {
 //        pidRghitV.setPoint = cmd_motor_right;
 //        pidLeftV = pidVelocity(pidLeftV, angularVelLKF.vel_kf, dt);
 //        pidRghitV = pidVelocity(pidRghitV, angularVelRKF.vel_kf, dt);
-//        cmd_motor_left = pidLeftV.cmd;
-//        cmd_motor_right = pidRghitV.cmd;
+//        motor_left = (int)pidLeftV.cmd;
+//        motor_right = (int)pidRghitV.cmd;
 //        if (debug==1){
-//          Serial2.println("Debug;cmd: cmdRight - " + (String)(cmd_motor_right) + " , " + (String)(angularVelRKF.vel_kf) + " , cmdLeft - " + (String)(cmd_motor_left) + " , " + (String)(angularVelLKF.vel_kf));
+//          Serial2.println("Debug;cmd: cmdRight - " + (String)(motor_right) + " , " + (String)(angularVelRKF.vel_kf) + " , cmdLeft - " + (String)(motor_left) + " , " + (String)(angularVelLKF.vel_kf));
 //        }
 //      }
 //    }
 
+    int motor_left;
+    int motor_right;
+    if (fabs(cmd_motor_left) == 0 && fabs(cmd_motor_right) == 0) stope();
+    else {
+     resetPidFlag = true;
+     dt = (millis() - lastPidTime) / 1000;  //  [sec]
+     if (dt >= pidDuration) {
+       lastPidTime = millis();
+       pidLeftP.setPoint = cmd_motor_left;
+       pidRghitP.setPoint = cmd_motor_right;
+       pidLeftP = pidPose(pidLeftP, angularVelLKF.vel_kf, dt);
+       pidRghitP = pidPose(pidRghitP, angularVelRKF.vel_kf, dt);
+       motor_left = (int)pidLeftP.cmd;
+       motor_right = (int)pidRghitP.cmd;
+       if (debug==1){
+         Serial2.println("Debug;cmd: cmdRight - " + (String)(motor_right) + " , " + (String)(angularVelRKF.vel_kf) + " , cmdLeft - " + (String)(motor_left) + " , " + (String)(angularVelLKF.vel_kf));
+       }
+     }
+   }
+
     dt = (millis() - last_cmd_time) / 1000;  //  [sec]
     if (dt < maxCmdDuration) {
-      if (cmd_motor_left > velMaxVal) cmd_motor_left = velMaxVal;
-      if (cmd_motor_left < -velMaxVal) cmd_motor_left = -velMaxVal;
-      if (cmd_motor_right > velMaxVal) cmd_motor_right = velMaxVal;
-      if (cmd_motor_right < -velMaxVal) cmd_motor_right = -velMaxVal;
-      drive((int)cmd_motor_left, (int)cmd_motor_right);
+      if (motor_left > velMaxVal) motor_left = velMaxVal;
+      if (motor_left < -velMaxVal) motor_left = -velMaxVal;
+      if (motor_right > velMaxVal) motor_right = velMaxVal;
+      if (motor_right < -velMaxVal) motor_right = -velMaxVal;
+      drive((int)motor_left, (int)motor_right);
     }
     else stope();
   }
