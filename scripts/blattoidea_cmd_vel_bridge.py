@@ -8,7 +8,7 @@ import serial
 from serial.tools import list_ports
 
 global ser, ser2, debug, odom_pub, seq, count_cmd_cb
-debug = True
+debug = False
 seq = 0
 
 
@@ -165,6 +165,7 @@ count_cmd_cb = 0
 rospy.Subscriber("/cmd_vel", Twist, cmd_vel_cb)
 odom_pub = rospy.Publisher("/blattoidea_odom", Odometry, queue_size=4)
 count = 0
+rospy.loginfo("Blattoidea is under your command")
 while not rospy.is_shutdown():
     if(ser2.in_waiting > 0):
         try:
