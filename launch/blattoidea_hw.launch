@@ -15,7 +15,7 @@
     </node>
 
     <include file="$(find blattoidea_hw)/launch/depthimage_to_laserscan.test" />
-    <include file="$(find realsense2_camera)/launch/rs_camera.launch"/>
+    <include file="$(find blattoidea_hw)/launch/rs_camera.launch"/>
     <include file="$(find blattoidea_hw)/launch/hector_slam_default.launch" />
 
     <!--<node name="blattoidea_nano_node" pkg="rosserial_python" type="serial_node.py" output="screen">
