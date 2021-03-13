@@ -441,15 +441,15 @@ void loop() {
       if (angularCmdVal < -velMaxVal) angularCmdVal = -velMaxVal;
     }
 
-    float cmdRight = (linearCmdVal - angularCmdVal) / 2;
-    float cmdLeft = (linearCmdVal + angularCmdVal) / 2;
+    int cmdRight = (linearCmdVal - angularCmdVal) / 2;
+    int cmdLeft = (linearCmdVal + angularCmdVal) / 2;
 
     if (debug==1)
     {
       Serial2.println("Debug;cmd: cmdRight - " + (String)(cmdRight) + " , cmdLeft - " + (String)(cmdLeft));
     }
     if ((fabs(cmdLeft) > minVelCmd) || (fabs(cmdRight) > minVelCmd)) {
-      drive(cmdLeft, cmdRight);
+      drive((int)cmdLeft, (int)cmdRight);
       }
   else {
     digitalWrite(rightBrackPin, LOW);
