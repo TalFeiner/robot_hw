@@ -7,6 +7,7 @@
 	type="static_transform_publisher"
 	args="0 0 0 0 0 0 world map 40" />
 
+
     <param name="robot_description" command="$(find xacro)/xacro '$(find blattoidea)/urdf/blattoideaHW.urdf.xacro' --inorder" />
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher">
 		<remap from="/joint_states" to="joint_states" />
@@ -25,7 +26,7 @@
 
     <include file="$(find blattoidea_hw)/launch/depthimage_to_laserscan.test" />
     <include file="$(find blattoidea_hw)/launch/rs_camera.launch"/>
-    <include file="$(find blattoidea_hw)/launch/hector_slam_default.launch" />
+    <include file="$(find blattoidea_hw)/launch/gmaping.launch" />
     <include file="$(find blattoidea_hw)/launch/teleop.launch" />
 
     <!--<node name="blattoidea_nano_node" pkg="rosserial_python" type="serial_node.py" output="screen">
