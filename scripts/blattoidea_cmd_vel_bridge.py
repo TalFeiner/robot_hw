@@ -6,12 +6,10 @@ from nav_msgs.msg import Odometry
 from scipy.spatial.transform import Rotation
 import serial
 from serial.tools import list_ports
-from std_msgs.msg import Bool
 from std_srvs.srv import Empty, EmptyResponse
 
-global ser, ser2, debug, odom_pub, seq, count_cmd_cb, map_tf_flag
+global ser, ser2, debug, odom_pub, seq, count_cmd_cb
 debug = False
-map_tf_flag = False
 seq = 0
 
 
@@ -49,10 +47,7 @@ def odom(line):
         odom_msg.child_frame_id = "world"
         odom_msg.header.seq = seq
         odom_msg.header.stamp = rospy.Time.now()
-        if map_tf_flag:
-            odom_msg.header.frame_id = "map"
-        else:
-            odom_msg.header.frame_id = "world"
+        odom_msg.header.frame_id = "map"
         odom_msg.pose.pose.position.x = float(x_pose)
         odom_msg.pose.pose.position.x = float(y_pose)
         odom_msg.pose.pose.orientation = Quaternion(*quat)
@@ -150,11 +145,6 @@ def open_serial_port():
     ser2.flushOutput()
 
 
-def map_tf_flag_cb(flag):
-    global map_tf_flag
-    map_tf_flag = flag.data
-
-
 def cmd_vel_cb(vel):
     global ser, count_cmd_cb
     cmd_angular_left, cmd_angular_right = cmd_vel2angular_wheel_velocity(vel)
@@ -179,18 +169,17 @@ def reset_cov_cb(empty):
     send = str("resetError;null")
     for __ in range(3):
         ser.write(bytes(send, encoding='utf8'))
-        rospy.sleep(0.1)
+        rospy.sleep(0.05)
     rospy.loginfo("dead reckoning covariance reset, done.")
     return EmptyResponse()
 
 
 rospy.init_node("blattoidea_hw_node", anonymous=True)
-rospy.Service("/reset_dead_reckoning_cov", Empty, reset_cov_cb)
-rospy.Subscriber("/map_tf_frame_exist_flag", Bool, map_tf_flag_cb)
 odom_pub = rospy.Publisher("/odom", Odometry, queue_size=4)
+open_serial_port()
 count_cmd_cb = 0
 count = 0
-open_serial_port()
+rospy.Service("/reset_dead_reckoning_cov", Empty, reset_cov_cb)
 rospy.Subscriber("/cmd_vel", Twist, cmd_vel_cb)
 rospy.loginfo("Blattoidea is under your command")
 while not rospy.is_shutdown():

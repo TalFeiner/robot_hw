@@ -4,7 +4,6 @@ import rospy
 import tf2_ros
 from geometry_msgs.msg import TransformStamped
 from nav_msgs.msg import Odometry
-from std_msgs.msg import Bool
 
 
 global seq, br_tf
@@ -25,25 +24,13 @@ def odom_cb(odom):
 
     try:
         br_tf.sendTransform(tf_odom_msg)
-        seq += seq
-        if seq < 10:
-            map_flag = Bool()
-            map_flag.data = True
-            map_tf_frame_exist.publish(map_flag)
-    except tf2_ros.buffer_interface.TypeException as e:
-        tf_odom_msg.header.frame_id = "world"
-        br_tf.sendTransform(tf_odom_msg)
         seq += 1
-        rospy.logerr_once(e)
-        if seq < 10:
-            map_flag = Bool()
-            map_flag.data = False
-            map_tf_frame_exist.publish(map_flag)
+    except tf2_ros.buffer_interface.TypeException as e:
+        rospy.logerr(e)
         pass
 
 
 rospy.init_node("blattoidea_tf_node")
 br_tf = tf2_ros.TransformBroadcaster()
-map_tf_frame_exist = rospy.Publisher("/map_tf_frame_exist_flag", Bool, queue_size=1)
 rospy.Subscriber("/odom", Odometry, odom_cb)
 rospy.spin()
