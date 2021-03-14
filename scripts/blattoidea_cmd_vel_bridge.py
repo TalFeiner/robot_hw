@@ -6,9 +6,11 @@ from nav_msgs.msg import Odometry
 from scipy.spatial.transform import Rotation
 import serial
 from serial.tools import list_ports
+from std_msgs.msg import Bool
 
-global ser, ser2, debug, odom_pub, seq, count_cmd_cb
+global ser, ser2, debug, odom_pub, seq, count_cmd_cb, map_tf_flag
 debug = False
+map_tf_flag = False
 seq = 0
 
 
@@ -38,14 +40,20 @@ def odom(line):
         yVar_pose = line_list[yVar_pose_idx]
         thetaVar = line_list[thetaVar_idx]
 
+        quat = Rotation.from_euler('z', float(theta)).as_quat()
+
+        # The pose in this message should be specified in the coordinate frame given by header.frame_id.
+        # The twist in this message should be specified in the coordinate frame given by the child_frame_id
         odom_msg = Odometry()
         odom_msg.child_frame_id = "world"
         odom_msg.header.seq = seq
         odom_msg.header.stamp = rospy.Time.now()
-        odom_msg.header.frame_id = "world"
+        if map_tf_flag:
+            odom_msg.header.frame_id = "map"
+        else:
+            odom_msg.header.frame_id = "world"
         odom_msg.pose.pose.position.x = float(x_pose)
         odom_msg.pose.pose.position.x = float(y_pose)
-        quat = Rotation.from_euler('z', float(theta)).as_quat()
         odom_msg.pose.pose.orientation = Quaternion(*quat)
         odom_msg.twist.twist.linear.x = float(linear_vel)
         odom_msg.twist.twist.angular.z = float(angular_vel)
@@ -55,8 +63,8 @@ def odom(line):
         odom_msg.pose.covariance[35] = float(thetaVar)
         odom_msg.twist.covariance[0] = float(linearVar_vel)
         odom_msg.twist.covariance[35] = float(angularVar_vel)
-        seq += seq
         odom_pub.publish(odom_msg)
+        seq += seq
 
 
 def cmd_vel2angular_wheel_velocity(vel, diameter=0.1651, wheelsSeparation=0.42):
@@ -141,6 +149,11 @@ def open_serial_port():
     ser2.flushOutput()
 
 
+def map_tf_flag_cb(flag):
+    global map_tf_flag
+    map_tf_flag = flag.data
+
+
 def cmd_vel_cb(vel):
     global ser, count_cmd_cb
     cmd_angular_left, cmd_angular_right = cmd_vel2angular_wheel_velocity(vel)
@@ -160,11 +173,12 @@ def cmd_vel_cb(vel):
 
 
 rospy.init_node("blattoidea_hw_node", anonymous=True)
-open_serial_port()
-count_cmd_cb = 0
-rospy.Subscriber("/cmd_vel", Twist, cmd_vel_cb)
+rospy.Subscriber("/map_tf_frame_exist_flag", Bool, map_tf_flag_cb)
 odom_pub = rospy.Publisher("/blattoidea_odom", Odometry, queue_size=4)
+count_cmd_cb = 0
 count = 0
+open_serial_port()
+rospy.Subscriber("/cmd_vel", Twist, cmd_vel_cb)
 rospy.loginfo("Blattoidea is under your command")
 while not rospy.is_shutdown():
     if(ser2.in_waiting > 0):
