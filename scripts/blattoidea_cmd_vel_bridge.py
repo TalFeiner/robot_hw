@@ -60,8 +60,8 @@ def odom(line):
 
 
 def cmd_vel2angular_wheel_velocity(vel, diameter=0.1651, wheelsSeparation=0.42):
-    cmd_linear_left = vel.linear.x + ((vel.angular.z * wheelsSeparation) / 2.0)
-    cmd_linear_right = vel.linear.x - ((vel.angular.z * wheelsSeparation) / 2.0)
+    cmd_linear_left = vel.linear.x - ((vel.angular.z * wheelsSeparation) / 2.0)
+    cmd_linear_right = vel.linear.x + ((vel.angular.z * wheelsSeparation) / 2.0)
     cmd_angular_left = cmd_linear_left / (diameter / 2)
     cmd_angular_right = cmd_linear_right / (diameter / 2)
     # print("cmd_angular_left: ", cmd_angular_left, "cmd_angular_right: ", cmd_angular_right)

@@ -1,0 +1,11 @@
+# Logitech Attack3
+axis_linear: 7  # Forward/Back
+scale_linear: 0.5
+scale_linear_turbo: 1
+
+axis_angular: 6  # Left/Right
+scale_angular: 0.5
+scale_angular_turbo: 1
+
+enable_button: 6  # Trigger
+enable_turbo_button: 8  # Button 2 aka thumb button
