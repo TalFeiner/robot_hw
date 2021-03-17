@@ -482,14 +482,14 @@ void loop() {
     if ((fabs(cmdLeft) > minVelCmd) && (fabs(cmdRight) > minVelCmd)) {
       drive((int)cmdLeft, (int)cmdRight);
       }
-      else if ((fabs(cmdLeft) > minVelCmd) || (fabs(cmdRight) > minVelCmd)){
-        if (fabs(cmdLeft) > minVelCmd){
-          drive((int)cmdLeft, (int)0);
-        }
-        if (fabs(cmdRight) > minVelCmd){
-          drive((int)0, (int)cmdRight);
-        }
+    else if ((fabs(cmdLeft) > minVelCmd) || (fabs(cmdRight) > minVelCmd)){
+      if (fabs(cmdLeft) > minVelCmd){
+        drive((int)cmdLeft, (int)0);
       }
+      if (fabs(cmdRight) > minVelCmd){
+        drive((int)0, (int)cmdRight);
+      }
+    }
   else {
     digitalWrite(rightBrackPin, LOW);
     digitalWrite(leftBrackPin, LOW);
@@ -505,7 +505,10 @@ void loop() {
         Serial2.println("Debug;inputString: " + inputString);
       }
       String stringName = getValue((String)inputString, ';', 0);
-      if(stringName.equalsIgnoreCase("cmdVel")) {
+      if(stringName.equalsIgnoreCase("emergencyStope")) {
+        stope(true);
+      }
+      else if(stringName.equalsIgnoreCase("cmdVel")) {
         cmd_motor_left = getValue((String)inputString, ';', 1).toDouble();
         cmd_motor_right = getValue((String)inputString, ';', 2).toDouble();
         last_cmd_time = millis();

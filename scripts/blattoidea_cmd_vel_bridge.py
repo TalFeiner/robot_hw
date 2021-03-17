@@ -176,14 +176,25 @@ def reset_cov_cb(empty):
     return EmptyResponse()
 
 
+def emergency_stope_cb(empty):
+    global ser
+    send = str("emergencyStope;null")
+    for __ in range(3):
+        ser.write(bytes(send, encoding='utf8'))
+        rospy.sleep(0.01)
+    rospy.loginfo("Emergency stope!!!")
+    return EmptyResponse()
+
+
 rospy.init_node("blattoidea_hw_node", anonymous=True)
 odom_pub = rospy.Publisher("/odom", Odometry, queue_size=4)
 open_serial_port()
 count_cmd_cb = 0
 count = 0
 rospy.Service("/reset_dead_reckoning_cov", Empty, reset_cov_cb)
+rospy.Service("/emergency_stope", Empty, emergency_stope_cb)
 rospy.Subscriber("/cmd_vel", Twist, cmd_vel_cb)
-rospy.loginfo("Blattoidea is under your command")
+rospy.loginfo("Blattoidea is under your command.")
 while not rospy.is_shutdown():
     if(ser2.in_waiting > 0):
         try:

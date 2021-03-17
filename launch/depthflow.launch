@@ -1,0 +1,9 @@
+<launch>
+
+  <node name="depth_image_compressor" pkg="depth_image_compressor" type="depth_image_compressor_node.py" output="screen">
+			<remap from="compressed" to="/kinect/depth_cv_bridge/compressed"/>
+			<remap from="image_raw" to="/camera/depth/image_rect_raw"/>
+		</node>
+		
+	<node name="depth_flow" pkg="depthflow" type="instinct_DepthCameraFlow_node.py" output="screen"/>
+</launch>
