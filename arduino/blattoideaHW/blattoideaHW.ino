@@ -6,13 +6,13 @@ Adafruit_MCP4728 mcp;
 const byte debug = 0;
 const float maxCmdDuration = 0.5, pidDuration = 0.1, durationEncoder = 0.1;  //  [sec]
 const float durationKF = durationEncoder, durationOdom = durationEncoder;  //  [sec]
-int minVelCmd = 80;
+int minVelCmd = 120;
 const int cmdMaxVal = 4000;
 const float D = 0.1651, wheelsSeparation = 0.42; //[m]
 const int pulsesPerRev = 60;
-const int max_rem_val = 1810 ,min_rem_val = 1166;
+const int max_rem_val = 1900 ,min_rem_val = 1100;
 const int norm_factor = (max_rem_val - min_rem_val) / 2;
-const int mid_rem_val = 1470;
+const int mid_rem_val = 1500;
 const float kp = 40, ki = 100, kd = 0, Ti = 1;
 const float rleftR_kf = 1.1, leftQ_kf = 0.5;
 const float rightR_kf = 1.1, rightQ_kf = 0.5;
@@ -393,6 +393,7 @@ void loop() {
 
     dist += linearV * dt;  //[m]
     theta += omega * dt;  //[rad]
+    double x, y, xError, yError;
     if(!resetError) {
       if((dist - oldDist) > dDist) {
         double tmpDtSq = dt - durationKF;
@@ -406,24 +407,36 @@ void loop() {
         thetaError = sqrt(tmpThetaErrorSqrt);  //+-[rad]
         oldTheta = theta;
       }
+      x = dist * cos(theta);  //[m]
+      y = dist * sin(theta);  //[m]
+      double tmpCosxErrorSq = cos(theta);
+      double tmpSinxErrorSq = dist * (-sin(theta));
+      double tmpxErrorSqrt = (sq(tmpCosxErrorSq) * sq(distError)) + (sq(tmpSinxErrorSq) * sq(thetaError));
+      xError = sqrt(tmpxErrorSqrt);  //[m]
+      double tmpSinyErrorSq = sin(theta);
+      double tmpCosyErrorSq = dist * cos(theta);
+      double tmpyErrorSqrt = (sq(tmpSinyErrorSq) * sq(distError)) + (sq(tmpCosyErrorSq) * sq(thetaError));
+      yError = sqrt(tmpyErrorSqrt);  //[m]
     }
     else {
       distError = 0.0;
       thetaError = 0.0;
+      x = dist * cos(theta);  //[m]
+      y = dist * sin(theta);  //[m]
+      double tmpCosxErrorSq = cos(theta);
+      double tmpSinxErrorSq = dist * (-sin(theta));
+      double tmpxErrorSqrt = (sq(tmpCosxErrorSq) * sq(distError)) + (sq(tmpSinxErrorSq) * sq(thetaError));
+      xError = sqrt(tmpxErrorSqrt);  //[m]
+      double tmpSinyErrorSq = sin(theta);
+      double tmpCosyErrorSq = dist * cos(theta);
+      double tmpyErrorSqrt = (sq(tmpSinyErrorSq) * sq(distError)) + (sq(tmpCosyErrorSq) * sq(thetaError));
+      yError = sqrt(tmpyErrorSqrt);  //[m]
+      Serial2.print((String)"Odom;" + "Twist;" + "angular;" + String(omega,8) + ";linear;" + String(linearV,8));
+      Serial2.print((String)";Pose;" + "x;" + String(x,8) + ";y;" + String(y,8) + ";theta;" + String(theta,8));
+      Serial2.println((String)";xVar;" + String(xError,8) + ";yVar;" + String(yError,8) + ";thetaVar;" + String(thetaError,8) + ";angularVar;" + String(omegaError,8) + ";linearVar;" + String(linearErrorV,8) + ";" + '\n');
       resetError = false;
     }
-  
-    double x = dist * cos(theta);  //[m]
-    double y = dist * sin(theta);  //[m]
-    double tmpCosxErrorSq = cos(theta);
-    double tmpSinxErrorSq = dist * (-sin(theta));
-    double tmpxErrorSqrt = (sq(tmpCosxErrorSq) * sq(distError)) + (sq(tmpSinxErrorSq) * sq(thetaError));
-    double xError = sqrt(tmpxErrorSqrt);  //[m]
-    double tmpSinyErrorSq = sin(theta);
-    double tmpCosyErrorSq = dist * cos(theta);
-    double tmpyErrorSqrt = (sq(tmpSinyErrorSq) * sq(distError)) + (sq(tmpCosyErrorSq) * sq(thetaError));
-    double yError = sqrt(tmpyErrorSqrt);  //[m]
-    
+
     dt = (millis() - oldTimeOdom) / 1000;  //  [sec]
     if(dt >= durationOdom) {
       oldTimeOdom = millis();
@@ -438,7 +451,7 @@ void loop() {
   }
 
   if(digitalRead(buttonPin) == HIGH) {
-    linearCmdVal = (float)pulseIn(PWMLinearPin, HIGH);
+    linearCmdVal = (float)pulseIn(PWMLinearPin, HIGH) + 100;
     angularCmdVal = (float)pulseIn(PWMAngularPin, HIGH);
 
     if (debug==1)
@@ -466,8 +479,16 @@ void loop() {
     {
       Serial2.println("Debug;cmd: cmdRight - " + (String)(cmdRight) + " , cmdLeft - " + (String)(cmdLeft));
     }
-    if ((fabs(cmdLeft) > minVelCmd) || (fabs(cmdRight) > minVelCmd)) {
+    if ((fabs(cmdLeft) > minVelCmd) && (fabs(cmdRight) > minVelCmd)) {
       drive((int)cmdLeft, (int)cmdRight);
+      }
+      else if ((fabs(cmdLeft) > minVelCmd) || (fabs(cmdRight) > minVelCmd)){
+        if (fabs(cmdLeft) > minVelCmd){
+          drive((int)cmdLeft, (int)0);
+        }
+        if (fabs(cmdRight) > minVelCmd){
+          drive((int)0, (int)cmdRight);
+        }
       }
   else {
     digitalWrite(rightBrackPin, LOW);
