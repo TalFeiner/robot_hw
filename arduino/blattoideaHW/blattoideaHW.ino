@@ -6,7 +6,7 @@ Adafruit_MCP4728 mcp;
 const byte debug = 0;
 const float maxCmdDuration = 0.5, pidDuration = 0.1, durationEncoder = 0.1;  //  [sec]
 const float durationKF = durationEncoder, durationOdom = durationEncoder;  //  [sec]
-int minVelCmd = 120;
+int minVelCmd = 300;
 const int cmdMaxVal = 4000;
 const float D = 0.1651, wheelsSeparation = 0.42; //[m]
 const int pulsesPerRev = 60;
@@ -451,7 +451,7 @@ void loop() {
   }
 
   if(digitalRead(buttonPin) == HIGH) {
-    linearCmdVal = (float)pulseIn(PWMLinearPin, HIGH) + 100;
+    linearCmdVal = (float)pulseIn(PWMLinearPin, HIGH) + 50;
     angularCmdVal = (float)pulseIn(PWMAngularPin, HIGH);
 
     if (debug==1)
@@ -464,8 +464,8 @@ void loop() {
       angularCmdVal = 0;
     }
     else {
-      linearCmdVal = ((linearCmdVal - mid_rem_val) / norm_factor) * cmdMaxVal;
-      angularCmdVal = ((angularCmdVal - mid_rem_val) / norm_factor) * cmdMaxVal;
+      linearCmdVal = ((linearCmdVal - mid_rem_val) / norm_factor) * cmdMaxVal / 2;
+      angularCmdVal = ((angularCmdVal - mid_rem_val) / norm_factor) * cmdMaxVal / 2;
       if (linearCmdVal > cmdMaxVal) linearCmdVal = cmdMaxVal;
       if (linearCmdVal < -cmdMaxVal) linearCmdVal = -cmdMaxVal;
       if (angularCmdVal > cmdMaxVal) angularCmdVal = cmdMaxVal;
@@ -479,14 +479,14 @@ void loop() {
     {
       Serial2.println("Debug;cmd: cmdRight - " + (String)(cmdRight) + " , cmdLeft - " + (String)(cmdLeft));
     }
-    if ((fabs(cmdLeft) > minVelCmd) && (fabs(cmdRight) > minVelCmd)) {
+    if ((abs(cmdLeft) > minVelCmd) && (abs(cmdRight) > minVelCmd)) {
       drive((int)cmdLeft, (int)cmdRight);
       }
-    else if ((fabs(cmdLeft) > minVelCmd) || (fabs(cmdRight) > minVelCmd)){
-      if (fabs(cmdLeft) > minVelCmd){
+    else if ((abs(cmdLeft) > minVelCmd) || (abs(cmdRight) > minVelCmd)){
+      if (abs(cmdLeft) > minVelCmd){
         drive((int)cmdLeft, (int)0);
       }
-      if (fabs(cmdRight) > minVelCmd){
+      if (abs(cmdRight) > minVelCmd){
         drive((int)0, (int)cmdRight);
       }
     }
