@@ -168,7 +168,7 @@ def cmd_vel_cb(vel):
 
 def reset_cov_cb(empty):
     global ser
-    send = str("resetError;null")
+    send = str("resetError;null" + '\n')
     for __ in range(3):
         ser.write(bytes(send, encoding='utf8'))
         rospy.sleep(0.01)
@@ -178,7 +178,7 @@ def reset_cov_cb(empty):
 
 def emergency_stope_cb(empty):
     global ser
-    send = str("emergencyStope;null")
+    send = str("emergencyStope;null" + '\n')
     stope_msg = Twist()
     stope_msg.linear.x = 0
     stope_msg.linear.y = 0

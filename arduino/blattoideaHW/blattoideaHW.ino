@@ -6,7 +6,7 @@ Adafruit_MCP4728 mcp;
 const byte debug = 0;
 const float maxCmdDuration = 0.5, pidDuration = 0.1, durationEncoder = 0.1;  //  [sec]
 const float durationKF = durationEncoder, durationOdom = durationEncoder;  //  [sec]
-int minVelCmd = 300;
+const int minVelCmd = 300;
 const int cmdMaxVal = 4000;
 const float D = 0.1651, wheelsSeparation = 0.42; //[m]
 const int pulsesPerRev = 60;
@@ -32,7 +32,6 @@ bool direcLeftOld = true;
 bool direcRightOld = true;
 
 bool stringComplete = false;  // whether the string is complete
-float setPointTemp = 0;
 
 long oldPositionL  = -0, oldPositionR  = -0;
 double oldTimeEncoder = 0, oldTimeKF = 0, last_cmd_time = 0, lastPidTime = 0, oldTimeOdom = 0;
@@ -58,6 +57,7 @@ struct pidPoseStruct {
    double setPoint;
    double integral;
    double errorOld;
+   float _setPointTemp;
    bool pidReset;
 };
 
@@ -71,8 +71,8 @@ struct pidVelocityStruct {
 struct kalman angularVelLKF = {vel_kf: 0.0, p_kf: 1.0, sum: 0.0, velCov: 0.0, N: 1, resetVar: false};
 struct kalman angularVelRKF = {vel_kf: 0.0, p_kf: 1.0, sum: 0.0, velCov: 0.0, N: 1, resetVar: false};
 
-struct pidPoseStruct pidLeftP = {cmd: 0, setPoint: 0, integral: 0, errorOld: 0, pidReset: false};
-struct pidPoseStruct pidRghitP = {cmd: 0, setPoint: 0, integral: 0, errorOld: 0, pidReset: false};
+struct pidPoseStruct pidLeftP = {cmd: 0, setPoint: 0, integral: 0, errorOld: 0, _setPointTemp: 0, pidReset: false};
+struct pidPoseStruct pidRghitP = {cmd: 0, setPoint: 0, integral: 0, errorOld: 0, _setPointTemp: 0, pidReset: false};
 struct pidVelocityStruct pidLeftV = {cmd: 0, errorOld: 0, setPoint: 0, pidReset: false};
 struct pidVelocityStruct pidRghitV = {cmd: 0, errorOld: 0, setPoint: 0, pidReset: false};
 
@@ -130,9 +130,9 @@ struct pidPoseStruct pidPose(struct pidPoseStruct pidS, double vel, double dt) {
     integralCalc = false;
     pidS.pidReset = false;
   }
-  if(setPointTemp != 0){
-    pidS.setPoint = setPointTemp;
-    setPointTemp = 0;
+  if(pidS._setPointTemp != 0){
+    pidS.setPoint = pidS._setPointTemp;
+    pidS._setPointTemp = 0;
     integralCalc = false;
   }
   if(errorCalc) error = pidS.setPoint - vel;
@@ -142,14 +142,14 @@ struct pidPoseStruct pidPose(struct pidPoseStruct pidS, double vel, double dt) {
   if(fabs(pidS.cmd) > cmdMaxVal) {
     if(pidS.cmd > 0){
       pidS.cmd = cmdMaxVal;
-      setPointTemp = cmdMaxVal;
+      pidS._setPointTemp = cmdMaxVal;
     }
     else {
       pidS.cmd = -cmdMaxVal;
-      setPointTemp = -cmdMaxVal;
+      pidS._setPointTemp = -cmdMaxVal;
     }
     if(ki != 0) {
-      pidS.integral += (1 / ki) * (setPointTemp - (kp * error));
+      pidS.integral += (1 / ki) * (pidS._setPointTemp - (kp * error));
     }
     else {
       pidS.integral = 0;
