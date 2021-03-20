@@ -16,6 +16,7 @@ const int mid_rem_val = 1500;
 const float kp = 40, ki = 100, kd = 0, Ti = 1;
 const float rleftR_kf = 1.1, leftQ_kf = 0.5;
 const float rightR_kf = 1.1, rightQ_kf = 0.5;
+const float dDist = 0.001, dTheta = 0.01;
 
 // serial2 pins- RX: 17, TX: 16
 // serial1 pins- RX: 0, TX: 1
@@ -30,8 +31,9 @@ const byte encRghitPinA = 18, encRghitPinB = 19;
 
 bool direcLeftOld = true;
 bool direcRightOld = true;
-
 bool stringComplete = false;  // whether the string is complete
+bool resetPidFlag = true;
+bool resetError = false;
 
 long oldPositionL  = -0, oldPositionR  = -0;
 double oldTimeEncoder = 0, oldTimeKF = 0, last_cmd_time = 0, lastPidTime = 0, oldTimeOdom = 0;
@@ -39,9 +41,8 @@ double cmd_motor_left = 0, cmd_motor_right = 0;
 double linearCmdVal, angularCmdVal;
 String inputString = "";         // a String to hold incoming data
 double angularVelL = 0, angularVelR = 0;
-bool resetPidFlag = true;
 int count = 0;
-
+double dist = 0.0, theta = 0.0, distError = 0.0, thetaError = 0.0, oldDist = 0.0, oldTheta = 0.0;
 
 struct kalman {
    double vel_kf;
@@ -75,10 +76,6 @@ struct pidPoseStruct pidLeftP = {cmd: 0, setPoint: 0, integral: 0, errorOld: 0, 
 struct pidPoseStruct pidRghitP = {cmd: 0, setPoint: 0, integral: 0, errorOld: 0, _setPointTemp: 0, pidReset: false};
 struct pidVelocityStruct pidLeftV = {cmd: 0, errorOld: 0, setPoint: 0, pidReset: false};
 struct pidVelocityStruct pidRghitV = {cmd: 0, errorOld: 0, setPoint: 0, pidReset: false};
-
-double dist = 0.0, theta = 0.0, distError = 0.0, thetaError = 0.0, oldDist = 0.0, oldTheta = 0.0;
-const float dDist = 0.001, dTheta = 0.01;
-bool resetError = false;
 
 Encoder encR(encLeftPinA, encLeftPinB);
 Encoder encL(encRghitPinA, encRghitPinB);
@@ -239,7 +236,7 @@ void stope(bool emergencyStope = false){
     digitalWrite(leftBrackPin, LOW);
     delay(100);
   }
-  if (emergencyStope) emergencyStope = false;
+  if (!resetPidFlag && emergencyStope) resetPidFlag = true;
   digitalWrite(rightBrackPin, HIGH);
   digitalWrite(leftBrackPin, HIGH);
   mcp.setChannelValue(MCP4728_CHANNEL_A, (int)0);  //  lfet
@@ -253,7 +250,8 @@ void stope(bool emergencyStope = false){
     angularVelLKF.resetVar = true;
     resetPidFlag = false;
   }
-  delay(200);
+  if (!emergencyStope) delay(200);
+  else emergencyStope = false;
 }
 
 
