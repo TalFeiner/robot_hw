@@ -8,7 +8,7 @@ const float maxCmdDuration = 0.5, pidDuration = 0.1, durationEncoder = 0.1;  // 
 const float durationKF = durationEncoder, durationOdom = durationEncoder;  //  [sec]
 const int minVelCmd = 240;
 const int cmdMaxVal = 4000;
-const float D = 0.1651, wheelsSeparation = 0.42; //[m]
+const float D = 0.1651, wheelsSeparation = 0.385; //[m]
 const int pulsesPerRev = 60;
 const int max_rem_val = 1900 ,min_rem_val = 1100;
 const int norm_factor = (max_rem_val - min_rem_val) / 2;
