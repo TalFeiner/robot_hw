@@ -5,5 +5,6 @@
 			<remap from="image_raw" to="/camera/depth/image_rect_raw"/>
 		</node>
 		
+	<!--<node name="depth_flow" pkg="depthflow" type="DepthCameraFlow_node.py" output="screen"/>-->
 	<node name="depth_flow" pkg="depthflow" type="instinct_DepthCameraFlow_node.py" output="screen"/>
 </launch>
