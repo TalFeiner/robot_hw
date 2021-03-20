@@ -6,7 +6,7 @@ Adafruit_MCP4728 mcp;
 const byte debug = 0;
 const float maxCmdDuration = 0.5, pidDuration = 0.1, durationEncoder = 0.1;  //  [sec]
 const float durationKF = durationEncoder, durationOdom = durationEncoder;  //  [sec]
-const int minVelCmd = 300;
+const int minVelCmd = 240;
 const int cmdMaxVal = 4000;
 const float D = 0.1651, wheelsSeparation = 0.42; //[m]
 const int pulsesPerRev = 60;
@@ -214,16 +214,32 @@ double wheelAngularVel(long newPosition, long oldPosition, double dt){
 
 
 void stope(bool emergencyStope = false){
-  while((fabs(angularVelLKF.vel_kf) > 0.001 || fabs(angularVelRKF.vel_kf) > 0.001) && emergencyStope) {
+  while((fabs(angularVelLKF.vel_kf) > 0.01 || fabs(angularVelRKF.vel_kf) > 0.01) && emergencyStope) {
     digitalWrite(rightBrackPin, HIGH);
     digitalWrite(leftBrackPin, HIGH);
     mcp.setChannelValue(MCP4728_CHANNEL_A, (int)0);  //  lfet
     mcp.setChannelValue(MCP4728_CHANNEL_B, (int)0);  //  right
     delay(200);
+    double dt = (millis() - oldTimeEncoder) / 1000;  //  [sec]
+    if(dt >= durationEncoder) {
+      oldTimeEncoder = millis();
+
+      long newPositionL = encL.read();
+      long newPositionR = -encR.read();
+
+      angularVelL = wheelAngularVel(newPositionL, oldPositionL, dt);  //  [rad/sec]
+      angularVelR = wheelAngularVel(newPositionR, oldPositionR, dt);  //  [rad/sec]
+      oldPositionL = newPositionL;
+      oldPositionR = newPositionR;
+
+      angularVelLKF = kalmanFunc (angularVelL, angularVelLKF, rleftR_kf, leftQ_kf);
+      angularVelRKF = kalmanFunc (angularVelR, angularVelRKF, rightR_kf, rightQ_kf);
+    }
     digitalWrite(rightBrackPin, LOW);
     digitalWrite(leftBrackPin, LOW);
-    delay(200);
+    delay(100);
   }
+  if (emergencyStope) emergencyStope = false;
   digitalWrite(rightBrackPin, HIGH);
   digitalWrite(leftBrackPin, HIGH);
   mcp.setChannelValue(MCP4728_CHANNEL_A, (int)0);  //  lfet

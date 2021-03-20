@@ -176,7 +176,7 @@ def reset_cov_cb(empty):
     return EmptyResponse()
 
 
-def emergency_stope_cb(empty):
+def emergency_stope_cb(empty, emergency_cmd_stope):
     global ser
     send = str("emergencyStope;null" + '\n')
     stope_msg = Twist()
@@ -201,7 +201,7 @@ count_cmd_cb = 0
 count = 0
 rospy.Service("/reset_dead_reckoning_cov", Empty, reset_cov_cb)
 emergency_cmd_stope = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
-rospy.Service("/emergency_stope", Empty, lambda rqt: emergency_stope_cb(rqt, emergency_cmd_stope))
+rospy.Service("/emergency_stope", Empty, lambda rqs: emergency_stope_cb(rqs, emergency_cmd_stope))
 rospy.Subscriber("/cmd_vel", Twist, cmd_vel_cb)
 rospy.loginfo("Blattoidea is under your command.")
 while not rospy.is_shutdown():
