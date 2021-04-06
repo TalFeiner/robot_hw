@@ -24,10 +24,12 @@ def radian2pulse_per_rev(radian):
     return int((radian / max_radian) * total_pulses)
 
 
-def check(req_tmp):
+def check(req_tmp, angle):
     total_pulses = 1000  # for 2/3 radian
+    if angle is 'pitch':
+        total_pulses = 950
     max = pulse_per_rev2radian(total_pulses)
-    if radian2pulse_per_rev(req_tmp) > 1000:
+    if radian2pulse_per_rev(req_tmp) > total_pulses:
         req_tmp = max
         rospy.logerr("Request limits are (0, %s)[rad]. you requested: %s, this is beyond limit. changing your request to %s [rad].", max, req_tmp, max)
     elif radian2pulse_per_rev(req_tmp) < 0:
@@ -38,7 +40,7 @@ def check(req_tmp):
 
 def semantic_slam_cb(req, controller, servo, angle):
     for ii in range(len(servo)):
-        setattr(req, angle[ii], check(getattr(req, angle[ii])))
+        setattr(req, angle[ii], check(getattr(req, angle[ii]), angle[ii]))
         servo[ii].move_prepare(radian2pulse_per_rev(getattr(req, angle[ii])))
     controller.move_start()
 
