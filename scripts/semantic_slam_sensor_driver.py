@@ -84,7 +84,7 @@ def semantic_slam_get_cb(req, servo, angle):
     res.message = "Failed"
     for ii in range(len(servo)):
         setattr(res, angle[ii], pulse_per_rev2radian(
-                servo[ii].get_position(getattr(req, angle[ii])))
+                servo[ii].get_position()
                 )
     res.success = True
     res.message = "Current pose"
