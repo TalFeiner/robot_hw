@@ -26,7 +26,7 @@ def radian2pulse_per_rev(radian):
 
 def check(req_tmp, angle):
     total_pulses = 1000  # for 2/3 radian
-    if angle is 'pitch':
+    if angle == 'pitch':
         total_pulses = 950
     max = pulse_per_rev2radian(total_pulses)
     if radian2pulse_per_rev(req_tmp) > total_pulses:
