@@ -58,7 +58,7 @@ find_package(catkin REQUIRED COMPONENTS
 add_service_files(
   FILES
   semanticSlam.srv
-#   Service2.srv
+  semanticSlamGetPose.srv
 )
 
 ## Generate actions in the 'action' folder

@@ -5,11 +5,13 @@ import lewansoul_lx16a
 import rospy
 import numpy as np
 from blattoidea_hw.srv import semanticSlam, semanticSlamResponse
+from blattoidea_hw.srv import semanticSlamGetPose, semanticSlamGetPoseResponse
 
 SERIAL_PORT = '/dev/ttyUSB0'
 servo_id = [1, 2]
 angles_names = ['pitch', 'yaw']
 epsilon = 0.0085  # radian
+debug = False
 
 
 def pulse_per_rev2radian(pulse):
@@ -38,7 +40,7 @@ def check(req_tmp, angle):
     return req_tmp
 
 
-def semantic_slam_cb(req, controller, servo, angle):
+def semantic_slam_cmd_cb(req, controller, servo, angle):
     for ii in range(len(servo)):
         setattr(req, angle[ii], check(getattr(req, angle[ii]), angle[ii]))
         servo[ii].move_prepare(radian2pulse_per_rev(getattr(req, angle[ii])))
@@ -51,13 +53,19 @@ def semantic_slam_cb(req, controller, servo, angle):
             setattr(res, angle[ii], pulse_per_rev2radian(
                     servo[ii].get_position(getattr(req, angle[ii])))
                     )
-            print("dist: ", abs(getattr(res, angle[ii]) - getattr(req, angle[ii])))
+            if debug:
+                print("dist: ", abs(getattr(res, angle[ii]) - getattr(req, angle[ii])))
             if abs(getattr(res, angle[ii]) - getattr(req, angle[ii])) > epsilon:
                 res.success = False
                 break
             else:
                 res.success = True
         if not res.success:
+            for ii in range(len(servo)):
+                pose = pulse_per_rev2radian(servo[ii].get_position(getattr(req, angle[ii])))
+                if abs(getattr(res, angle[ii]) - pose) < epsilon and abs(getattr(res, angle[ii]) - getattr(req, angle[ii])) > epsilon:
+                    res.message = "Error: could not reach goal!"
+                    return res
             rospy.sleep(0.5)
             controller.move_start()
             continue
@@ -66,6 +74,20 @@ def semantic_slam_cb(req, controller, servo, angle):
             setattr(res, angle[ii], pulse_per_rev2radian(
                     servo[ii].get_position(getattr(req, angle[ii])))
                     )
+    res.message = "Goal reached"
+    return res
+
+
+def semantic_slam_get_cb(req, servo, angle):
+    res = semanticSlamGetPoseResponse()
+    res.success = False
+    res.message = "Failed"
+    for ii in range(len(servo)):
+        setattr(res, angle[ii], pulse_per_rev2radian(
+                servo[ii].get_position(getattr(req, angle[ii])))
+                )
+    res.success = True
+    res.message = "Current pose"
     return res
 
 
@@ -81,6 +103,8 @@ for ii in range(len(servo_id)):
     else:
         rospy.logerr("Servo motor, ID %s is OFF!", servo_id[ii])
 args = [controller, servo_list, angles_names]
-rospy.Service('semantic_slam', semanticSlam, lambda req: semantic_slam_cb(req, *args))
+args_get = [servo_list, angles_names]
+rospy.Service('semantic_slam_cmd_pose', semanticSlam, lambda req: semantic_slam_cmd_cb(req, *args))
+rospy.Service('semantic_slam_get_pose', semanticSlamGetPose, lambda req: semantic_slam_get_cb(req, *args_get))
 rospy.loginfo("Semantic SLAM sensor is ready to scan")
 rospy.spin()
