@@ -48,6 +48,7 @@ def semantic_slam_cmd_cb(req, controller, servo, angle):
 
     res = semanticSlamResponse()
     res.success = False
+    res.message = "Error: could not reach goal!"
     while not res.success:
         for ii in range(len(servo)):
             setattr(res, angle[ii], pulse_per_rev2radian(
@@ -61,12 +62,16 @@ def semantic_slam_cmd_cb(req, controller, servo, angle):
             else:
                 res.success = True
         if not res.success:
+            rospy.sleep(0.1)
             for ii in range(len(servo)):
                 pose = pulse_per_rev2radian(servo[ii].get_position(getattr(req, angle[ii])))
                 if abs(getattr(res, angle[ii]) - pose) < epsilon and abs(getattr(res, angle[ii]) - getattr(req, angle[ii])) > epsilon:
-                    res.message = "Error: could not reach goal!"
+                    servo[ii].motor_off()
+                    controller.move_stop()
+                    servo[ii].set_led_errors()
+                    rospy.logerr("Error: MOTOR ID: %s (%s) STUCK! Default respond automatically turn off.", ii , angle[ii])
+                    res.message = ("Error: MOTOR ID: %s (%s) STUCK! Default respond automatically turn off.", ii , angle[ii])
                     return res
-            rospy.sleep(0.5)
             controller.move_start()
             continue
         rospy.sleep(0.1)
