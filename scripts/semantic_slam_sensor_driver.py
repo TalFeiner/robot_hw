@@ -85,13 +85,13 @@ def semantic_slam_cmd_cb(req, controller, servo, angle):
                 rospy.sleep(0.01)
             controller.move_start()
             rospy.sleep(0.2)
-        rospy.sleep(0.1)
-        for ii in range(len(servo)):
-            setattr(res, angle[ii], pulse_per_rev2radian(
-                    servo[ii].get_position())
-                    )
-            setattr(res.limits.max, angle[ii], check(max_pulses, angle[ii], True))
-            rospy.sleep(0.01)
+    rospy.sleep(0.1)
+    for ii in range(len(servo)):
+        setattr(res, angle[ii], pulse_per_rev2radian(
+                servo[ii].get_position())
+                )
+        setattr(res.limits.max, angle[ii], check(max_pulses, angle[ii], True))
+        rospy.sleep(0.01)
     res.message = "Goal reached"
     return res
 
