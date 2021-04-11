@@ -3,5 +3,6 @@ float32 pitch
 ---
 float32 yaw
 float32 pitch
+semanticSlamLimits limits
 bool success
 string message
