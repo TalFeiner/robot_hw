@@ -1,2 +1,0 @@
-semanticSlamOrient max
-semanticSlamOrient min
