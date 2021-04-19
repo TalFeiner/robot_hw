@@ -218,3 +218,5 @@ while not rospy.is_shutdown():
     if(count % 10 == 0):
         ser2.flushInput()
         count = 0
+
+    rospy.sleep(0.1)

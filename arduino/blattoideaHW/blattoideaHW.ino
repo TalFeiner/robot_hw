@@ -585,11 +585,11 @@ void loop() {
     }
     else stope();
   }
-  delay(1);
   count++;
   if (count % 100 == 0){
     Serial.flush();
     Serial2.flush();
     count = 0;
   }
+  delay(1);
 }
