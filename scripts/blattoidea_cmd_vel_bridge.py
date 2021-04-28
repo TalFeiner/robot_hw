@@ -244,7 +244,7 @@ def main_cb(event, ser2, odom_pub, debug, lock):
                 if(debug):
                     print("msg - ", line)
             count += 1
-            if(count % 100 == 0):
+            if(count % 10 == 0):
                 ser2.flushInput()
                 count = 0
         except serial.SerialException as e:
