@@ -456,13 +456,11 @@ void loop() {
       {
         Serial2.println("wheelAngularVel;" + String(angularVelLKF.vel_kf,8) + ";" + String(angularVelRKF.vel_kf,8) + '\n');
       }
-      Serial2.print((String)"Odom;" + "Twist;" + "angular;" + String(omega,8) + ";linear;" + String(linearV,8));
-      Serial2.print((String)";Pose;" + "x;" + String(x,8) + ";y;" + String(y,8) + ";theta;" + String(theta,8));
-      Serial2.println((String)";xVar;" + String(xError,8) + ";yVar;" + String(yError,8) + ";thetaVar;" + String(thetaError,8) + ";angularVar;" + String(omegaError,8) + ";linearVar;" + String(linearErrorV,8) + ";" + '\n');
+      Serial2.print((String)((String)"Odom;" + "angular;" + String(omega,8) + ";linear;" + String(linearV,8) + ";" + "x;" + String(x,8) + ";y;" + String(y,8) + ";theta;" + String(theta,8) + (String)";xVar;" + String(xError,8) + ";yVar;" + String(yError,8) + ";thetaVar;" + String(thetaError,8) + ";angularVar;" + String(omegaError,8) + ";linearVar;" + String(linearErrorV,8) + ";" + '\n'));
     }
   }
 
-  if(digitalRead(buttonPin) == HIGH) {
+  if(digitalRead(buttonPin) == LOW) {
     linearCmdVal = (float)pulseIn(PWMLinearPin, HIGH) + 50;
     angularCmdVal = (float)pulseIn(PWMAngularPin, HIGH);
 
