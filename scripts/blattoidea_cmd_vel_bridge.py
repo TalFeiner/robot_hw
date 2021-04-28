@@ -21,7 +21,11 @@ def odom_func(line, odom_pub):
     global seq
     if "Odom" in line:
         line_list = line.split(";")
-        if len(line_list) == 22 and line_list[-1] == "\n":
+        if (len(line_list) == 22 and line_list[-1] == "\n" and "angular" in
+           line and "linear" in line and "x" in line and "y" in line and
+           "theta" in line and "xVar" in line and "yVar" in line and
+           "thetaVar" in line and "angularVar" in line and "linearVar" in line):
+
             angular_vel_idx = line_list.index("angular") + 1
             linear_vel_idx = line_list.index("linear") + 1
             x_pose_idx = line_list.index("x") + 1
@@ -238,7 +242,7 @@ def main_cb(event, ser2, odom_pub, debug, lock):
         lock.acquire()
         try:
             if(ser2.in_waiting > 0):
-                line = bytearray(ser2.readline()).decode('utf-8')
+                line = bytes(ser2.readline()).decode('utf-8')
                 line = ''.join(filter(lambda c: c in string.printable, line))
                 odom_func(line, odom_pub)
                 if(debug):
