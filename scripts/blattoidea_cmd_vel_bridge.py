@@ -7,18 +7,21 @@ from scipy.spatial.transform import Rotation
 import serial
 from serial.tools import list_ports
 from std_srvs.srv import Empty, EmptyResponse
+import threading
+import string
 
-global ser, ser2, debug, odom_pub, seq, count_cmd_cb
+global seq, count_cmd_cb, count
 debug = False
 seq = 0
+count_cmd_cb = 0
+count = 0
 
 
-def odom(line):
-    global odom_pub, seq
+def odom_func(line, odom_pub):
+    global seq
     if "Odom" in line:
-        if ("angular" in line and "linear" in line and "x" in line and "y" in line and "theta" in line and
-           "xVar" in line and "yVar" in line and "thetaVar" in line and "angularVar" in line and "linearVar" in line):
-            line_list = line.split(";")
+        line_list = line.split(";")
+        if line_list[-1] == "\n":
             angular_vel_idx = line_list.index("angular") + 1
             linear_vel_idx = line_list.index("linear") + 1
             x_pose_idx = line_list.index("x") + 1
@@ -75,7 +78,6 @@ def cmd_vel2angular_wheel_velocity(vel, diameter=0.1651, wheelsSeparation=0.385)
 
 
 def open_serial_port():
-    global ser, ser2
     baud = ""
     baud2 = ""
     try:
@@ -145,85 +147,120 @@ def open_serial_port():
     ser2.flushInput()
     ser.flushOutput()
     ser2.flushOutput()
+    return ser, ser2
 
 
-def cmd_vel_cb(vel):
-    global ser, count_cmd_cb
-    cmd_angular_left, cmd_angular_right = cmd_vel2angular_wheel_velocity(vel)
-    cmd_angular_left = (cmd_angular_left)
-    cmd_angular_right = (cmd_angular_right)
-    send = str(str("cmdVel") + str(";") + str(cmd_angular_left) + str(";") + str(cmd_angular_right) + '\n')
+def cmd_vel_cb(vel, ser, debug, lock):
+    global count_cmd_cb
     try:
-        ser.write(bytes(send, encoding='utf8'))
-        if(debug):
-            print("sending: " + str(send))
-        count_cmd_cb += 1
-        if(count_cmd_cb % 100 == 0):
-            ser.flushOutput()
-            count_cmd_cb = 0
-    except serial.SerialException as e:
-        rospy.logerr(e)
+        lock.acquire()
+        cmd_angular_left, cmd_angular_right = cmd_vel2angular_wheel_velocity(vel)
+        cmd_angular_left = (cmd_angular_left)
+        cmd_angular_right = (cmd_angular_right)
+        send = str(str("cmdVel") + str(";") + str(cmd_angular_left) + str(";") + str(cmd_angular_right) + '\n')
+        try:
+            ser.write(bytes(send, encoding='utf8'))
+            if(debug):
+                print("sending: " + str(send))
+            count_cmd_cb += 1
+            if(count_cmd_cb % 10 == 0):
+                ser.flushOutput()
+                count_cmd_cb = 0
+        except serial.SerialException as e:
+            rospy.logerr(e)
+            pass
+    finally:
+        lock.release()
+        return EmptyResponse()
+
+
+def reset_cov_cb(empty, ser, lock):
+    try:
+        lock.acquire()
+        send = str("resetError;null" + '\n')
+        for __ in range(3):
+            ser.write(bytes(send, encoding='utf8'))
+            rospy.sleep(0.01)
+        rospy.loginfo("dead reckoning covariance reset, done.")
+    finally:
+        lock.release()
+        return EmptyResponse()
+
+
+def emergency_stope_cb(empty, emergency_cmd_stope, ser, lock):
+    try:
+        lock.acquire()
+        send = str("emergencyStope;null" + '\n')
+        stope_msg = Twist()
+        stope_msg.linear.x = 0
+        stope_msg.linear.y = 0
+        stope_msg.linear.z = 0
+        stope_msg.angular.x = 0
+        stope_msg.angular.y = 0
+        stope_msg.angular.z = 0
+        for __ in range(3):
+            ser.write(bytes(send, encoding='utf8'))
+            emergency_cmd_stope.publish(stope_msg)
+            rospy.sleep(0.01)
+        rospy.loginfo("Emergency stope!!!")
+    finally:
+        lock.release()
+        return EmptyResponse()
+
+
+def myhook(ser2, ser, lock):
+    try:
+        ser2.close
+    except:
         pass
-
-
-def reset_cov_cb(empty):
-    global ser
-    send = str("resetError;null" + '\n')
-    for __ in range(3):
-        ser.write(bytes(send, encoding='utf8'))
-        rospy.sleep(0.01)
-    rospy.loginfo("dead reckoning covariance reset, done.")
-    return EmptyResponse()
-
-
-def emergency_stope_cb(empty, emergency_cmd_stope):
-    global ser
-    send = str("emergencyStope;null" + '\n')
-    stope_msg = Twist()
-    stope_msg.linear.x = 0
-    stope_msg.linear.y = 0
-    stope_msg.linear.z = 0
-    stope_msg.angular.x = 0
-    stope_msg.angular.y = 0
-    stope_msg.angular.z = 0
-    for __ in range(3):
-        ser.write(bytes(send, encoding='utf8'))
-        emergency_cmd_stope.publish(stope_msg)
-        rospy.sleep(0.01)
-    rospy.loginfo("Emergency stope!!!")
-    return EmptyResponse()
-
-
-def myhook():
-    ser2.close
-    ser.close
+    try:
+        ser.close
+    except:
+        pass
+    try:
+        lock.release()
+    except:
+        pass
     rospy.loginfo("Bye, see you soon :)")
 
 
-rospy.init_node("blattoidea_hw_node", anonymous=True)
-rospy.on_shutdown(myhook)
-odom_pub = rospy.Publisher("/odom", Odometry, queue_size=4)
-open_serial_port()
-count_cmd_cb = 0
-count = 0
-rospy.Service("/reset_dead_reckoning_cov", Empty, reset_cov_cb)
-emergency_cmd_stope = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
-rospy.Service("/emergency_stope", Empty, lambda rqs: emergency_stope_cb(rqs, emergency_cmd_stope))
-rospy.Subscriber("/cmd_vel", Twist, cmd_vel_cb)
-rospy.loginfo("Blattoidea is under your command.")
-while not rospy.is_shutdown():
+def main_cb(event, ser2, odom_pub, debug, lock):
+    global count
     try:
-        if(ser2.in_waiting > 0):
-            line = ser2.readline().decode('utf-8')
-            odom(line)
-            if(debug):
-                print("msg - ", line)
-        count += 1
-        if(count % 100 == 0):
-            ser2.flushInput()
-            count = 0
-    except serial.SerialException as e:
-        rospy.logerr(e)
-        pass
+        lock.acquire()
+        try:
+            if(ser2.in_waiting > 0):
+                line = ser2.readline().decode('utf-8')
+                line = ''.join(filter(lambda c: c in string.printable, line))
+                odom_func(line, odom_pub)
+                if(debug):
+                    print("msg - ", line)
+            count += 1
+            if(count % 100 == 0):
+                ser2.flushInput()
+                count = 0
+        except serial.SerialException as e:
+            rospy.logerr(e)
+            pass
+    finally:
+        lock.release()
 
-    rospy.sleep(0.1)
+
+rospy.init_node("blattoidea_hw_node", anonymous=True)
+lock = threading.Lock()
+ser, ser2 = open_serial_port()
+odom_pub = rospy.Publisher("/odom", Odometry, queue_size=4)
+rospy.Service("/reset_dead_reckoning_cov", Empty,
+              lambda req: reset_cov_cb(req, ser, lock))
+emergency_cmd_stope = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
+rospy.Service("/emergency_stope", Empty,
+              lambda rqs: emergency_stope_cb(rqs, emergency_cmd_stope,
+                                             ser, lock))
+rospy.Subscriber("/cmd_vel", Twist,
+                 lambda msg: cmd_vel_cb(msg, ser, debug, lock))
+rospy.loginfo("Blattoidea is under your command.")
+
+rospy.Timer(rospy.Duration(0.1),
+            lambda event: main_cb(event, ser2, odom_pub, debug, lock))
+rospy.on_shutdown(lambda: myhook(ser2, ser, lock))
+rospy.spin()
