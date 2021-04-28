@@ -46,10 +46,10 @@ def odom(line):
             # The pose in this message should be specified in the coordinate frame given by header.frame_id.
             # The twist in this message should be specified in the coordinate frame given by the child_frame_id
             odom_msg = Odometry()
-            odom_msg.child_frame_id = "world"
+            odom_msg.child_frame_id = "odom"
             odom_msg.header.seq = seq
             odom_msg.header.stamp = rospy.Time.now()
-            odom_msg.header.frame_id = "map"
+            odom_msg.header.frame_id = "odom"
             odom_msg.pose.pose.position.x = float(x_pose)
             odom_msg.pose.pose.position.x = float(y_pose)
             odom_msg.pose.pose.orientation = Quaternion(*quat)
@@ -155,15 +155,15 @@ def cmd_vel_cb(vel):
     send = str(str("cmdVel") + str(";") + str(cmd_angular_left) + str(";") + str(cmd_angular_right) + '\n')
     try:
         ser.write(bytes(send, encoding='utf8'))
+        if(debug):
+            print("sending: " + str(send))
+        count_cmd_cb += 1
+        if(count_cmd_cb % 100 == 0):
+            ser.flushOutput()
+            count_cmd_cb = 0
     except serial.SerialException as e:
         rospy.logerr(e)
         pass
-    if(debug):
-        print("sending: " + str(send))
-    count_cmd_cb += 1
-    if(count % 10 == 0):
-        ser.flushOutput()
-        count_cmd_cb = 0
 
 
 def reset_cov_cb(empty):
@@ -194,7 +194,14 @@ def emergency_stope_cb(empty, emergency_cmd_stope):
     return EmptyResponse()
 
 
+def myhook():
+    ser2.close
+    ser.close
+    rospy.loginfo("Bye, see you soon :)")
+
+
 rospy.init_node("blattoidea_hw_node", anonymous=True)
+rospy.on_shutdown(myhook)
 odom_pub = rospy.Publisher("/odom", Odometry, queue_size=4)
 open_serial_port()
 count_cmd_cb = 0
@@ -205,18 +212,18 @@ rospy.Service("/emergency_stope", Empty, lambda rqs: emergency_stope_cb(rqs, eme
 rospy.Subscriber("/cmd_vel", Twist, cmd_vel_cb)
 rospy.loginfo("Blattoidea is under your command.")
 while not rospy.is_shutdown():
-    if(ser2.in_waiting > 0):
-        try:
+    try:
+        if(ser2.in_waiting > 0):
             line = ser2.readline().decode('utf-8')
             odom(line)
             if(debug):
                 print("msg - ", line)
-        except serial.SerialException as e:
-            rospy.logerr(e)
-            pass
-    count += 1
-    if(count % 10 == 0):
-        ser2.flushInput()
-        count = 0
+        count += 1
+        if(count % 100 == 0):
+            ser2.flushInput()
+            count = 0
+    except serial.SerialException as e:
+        rospy.logerr(e)
+        pass
 
     rospy.sleep(0.1)

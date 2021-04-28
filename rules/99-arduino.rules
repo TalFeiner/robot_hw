@@ -3,3 +3,5 @@ SUBSYSTEM=="tty", KERNELS=="*.4", SYMLINK+="arduino0", ATTRS{idVendor}=="1a86", 
 
 SUBSYSTEM=="tty", KERNELS=="*.1", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{serial}=="A50285BI", SYMLINK+="arduino1", MODE="0777"
 
+SUBSYSTEM=="tty", KERNELS=="1-6", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{serial}=="A50285BI", SYMLINK+="IMU", MODE="0777"
+
