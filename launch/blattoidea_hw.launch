@@ -1,11 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <launch>
 
-    <node
-	name="tf_world_map"
-	pkg="tf"
-	type="static_transform_publisher"
-	args="0 0 0 0 0 0 world map 40" />
+
 
 
     <param name="robot_description" command="$(find xacro)/xacro '$(find blattoidea)/urdf/blattoideaHW.urdf.xacro' --inorder" />
@@ -24,10 +20,10 @@
      <node name="tf_broadcaster_blattoidea_node" pkg="blattoidea_hw" type="blattoidea_tf_broadcaster.py">
 	</node>
 
-    <!-- <include file="$(find blattoidea_hw)/launch/depthimage_to_laserscan.test" />-->
     <include file="$(find blattoidea_hw)/launch/rs_camera.launch"/>
   <!-- <include file="$(find blattoidea_hw)/launch/gmaping.launch" /> -->
-   <!-- <include file="$(find blattoidea_hw)/launch/teleop.launch" /> -->
+  <!-- <include file="$(find blattoidea_hw)/launch/depthimage_to_laserscan.test" />-->
+   <include file="$(find blattoidea_hw)/launch/teleop.launch" />
 
     <!--<node name="blattoidea_nano_node" pkg="rosserial_python" type="serial_node.py" output="screen">
         <param name="port" value="/dev/ttyUSB0" />
