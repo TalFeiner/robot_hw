@@ -7,10 +7,15 @@ from scipy.spatial.transform import Rotation
 import serial
 from serial.tools import list_ports
 from std_srvs.srv import Empty, EmptyResponse
+import threading
 
-global ser, ser2, debug, odom_pub, seq, count_cmd_cb
+global debug, odom_pub, seq, count_cmd_cb, count, lock
+lock = threading.Lock()
+lock.acquire()
 debug = False
 seq = 0
+count_cmd_cb = 0
+count = 0
 
 
 def odom(line):
@@ -75,7 +80,6 @@ def cmd_vel2angular_wheel_velocity(vel, diameter=0.1651, wheelsSeparation=0.385)
 
 
 def open_serial_port():
-    global ser, ser2
     baud = ""
     baud2 = ""
     try:
@@ -145,29 +149,29 @@ def open_serial_port():
     ser2.flushInput()
     ser.flushOutput()
     ser2.flushOutput()
+    return ser, ser2
 
 
-def cmd_vel_cb(vel):
-    global ser, count_cmd_cb
+def cmd_vel_cb(vel, ser):
+    global count_cmd_cb
     cmd_angular_left, cmd_angular_right = cmd_vel2angular_wheel_velocity(vel)
     cmd_angular_left = (cmd_angular_left)
     cmd_angular_right = (cmd_angular_right)
     send = str(str("cmdVel") + str(";") + str(cmd_angular_left) + str(";") + str(cmd_angular_right) + '\n')
     try:
         ser.write(bytes(send, encoding='utf8'))
+        if(debug):
+            print("sending: " + str(send))
+        count_cmd_cb += 1
+        if(count_cmd_cb % 10 == 0):
+            ser.flushOutput()
+            count_cmd_cb = 0
     except serial.SerialException as e:
         rospy.logerr(e)
         pass
-    if(debug):
-        print("sending: " + str(send))
-    count_cmd_cb += 1
-    if(count % 10 == 0):
-        ser.flushOutput()
-        count_cmd_cb = 0
 
 
-def reset_cov_cb(empty):
-    global ser
+def reset_cov_cb(empty, ser):
     send = str("resetError;null" + '\n')
     for __ in range(3):
         ser.write(bytes(send, encoding='utf8'))
@@ -176,8 +180,7 @@ def reset_cov_cb(empty):
     return EmptyResponse()
 
 
-def emergency_stope_cb(empty, emergency_cmd_stope):
-    global ser
+def emergency_stope_cb(empty, emergency_cmd_stope, ser):
     send = str("emergencyStope;null" + '\n')
     stope_msg = Twist()
     stope_msg.linear.x = 0
@@ -194,29 +197,40 @@ def emergency_stope_cb(empty, emergency_cmd_stope):
     return EmptyResponse()
 
 
-rospy.init_node("blattoidea_hw_node", anonymous=True)
-odom_pub = rospy.Publisher("/odom", Odometry, queue_size=4)
-open_serial_port()
-count_cmd_cb = 0
-count = 0
-rospy.Service("/reset_dead_reckoning_cov", Empty, reset_cov_cb)
-emergency_cmd_stope = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
-rospy.Service("/emergency_stope", Empty, lambda rqs: emergency_stope_cb(rqs, emergency_cmd_stope))
-rospy.Subscriber("/cmd_vel", Twist, cmd_vel_cb)
-rospy.loginfo("Blattoidea is under your command.")
-while not rospy.is_shutdown():
-    if(ser2.in_waiting > 0):
-        try:
+def myhook():
+    global lock
+    lock.release()
+
+
+def main_cb(event):
+    global count
+    try:
+        if(ser2.in_waiting > 0):
             line = ser2.readline().decode('utf-8')
             odom(line)
-            if(debug):
-                print("msg - ", line)
-        except serial.SerialException as e:
-            rospy.logerr(e)
-            pass
-    count += 1
-    if(count % 10 == 0):
-        ser2.flushInput()
-        count = 0
+        if(debug):
+            print("msg - ", line)
+        count += 1
+        if(count % 10 == 0):
+            ser2.flushInput()
+            count = 0
+    except serial.SerialException as e:
+        rospy.logerr(e)
+        pass
 
-    rospy.sleep(0.1)
+
+rospy.init_node("blattoidea_hw_node", anonymous=True)
+ser, ser2 = open_serial_port()
+odom_pub = rospy.Publisher("/odom", Odometry, queue_size=4)
+rospy.Service("/reset_dead_reckoning_cov", Empty,
+              lambda req: reset_cov_cb(req, ser))
+emergency_cmd_stope = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
+rospy.Service("/emergency_stope", Empty,
+              lambda rqs: emergency_stope_cb(rqs, emergency_cmd_stope, ser))
+rospy.Subscriber("/cmd_vel", Twist,
+                 lambda msg: cmd_vel_cb(msg, ser))
+rospy.loginfo("Blattoidea is under your command.")
+rospy.Timer(rospy.Duration(0.1),
+            lambda event: main_cb(event, ser2))
+rospy.on_shutdown(myhook)
+rospy.spin()
