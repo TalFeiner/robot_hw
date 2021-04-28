@@ -25,51 +25,53 @@ def odom_func(line, odom_pub):
            line and "linear" in line and "x" in line and "y" in line and
            "theta" in line and "xVar" in line and "yVar" in line and
            "thetaVar" in line and "angularVar" in line and "linearVar" in line):
+            try:
+                angular_vel_idx = line_list.index("angular") + 1
+                linear_vel_idx = line_list.index("linear") + 1
+                x_pose_idx = line_list.index("x") + 1
+                y_pose_idx = line_list.index("y") + 1
+                theta_idx = line_list.index("theta") + 1
+                angular_vel = line_list[angular_vel_idx]
+                linear_vel = line_list[linear_vel_idx]
+                x_pose = line_list[x_pose_idx]
+                y_pose = line_list[y_pose_idx]
+                theta = line_list[theta_idx]
 
-            angular_vel_idx = line_list.index("angular") + 1
-            linear_vel_idx = line_list.index("linear") + 1
-            x_pose_idx = line_list.index("x") + 1
-            y_pose_idx = line_list.index("y") + 1
-            theta_idx = line_list.index("theta") + 1
-            angular_vel = line_list[angular_vel_idx]
-            linear_vel = line_list[linear_vel_idx]
-            x_pose = line_list[x_pose_idx]
-            y_pose = line_list[y_pose_idx]
-            theta = line_list[theta_idx]
+                xVar_pose_idx = line_list.index("xVar") + 1
+                yVar_pose_idx = line_list.index("yVar") + 1
+                thetaVar_idx = line_list.index("thetaVar") + 1
+                angularVar_vel_idx = line_list.index("angularVar") + 1
+                linearVar_vel_idx = line_list.index("linearVar") + 1
+                angularVar_vel = line_list[angularVar_vel_idx]
+                linearVar_vel = line_list[linearVar_vel_idx]
+                xVar_pose = line_list[xVar_pose_idx]
+                yVar_pose = line_list[yVar_pose_idx]
+                thetaVar = line_list[thetaVar_idx]
 
-            xVar_pose_idx = line_list.index("xVar") + 1
-            yVar_pose_idx = line_list.index("yVar") + 1
-            thetaVar_idx = line_list.index("thetaVar") + 1
-            angularVar_vel_idx = line_list.index("angularVar") + 1
-            linearVar_vel_idx = line_list.index("linearVar") + 1
-            angularVar_vel = line_list[angularVar_vel_idx]
-            linearVar_vel = line_list[linearVar_vel_idx]
-            xVar_pose = line_list[xVar_pose_idx]
-            yVar_pose = line_list[yVar_pose_idx]
-            thetaVar = line_list[thetaVar_idx]
+                quat = Rotation.from_euler('z', float(theta)).as_quat()
 
-            quat = Rotation.from_euler('z', float(theta)).as_quat()
+                # The pose in this message should be specified in the coordinate frame given by header.frame_id.
+                # The twist in this message should be specified in the coordinate frame given by the child_frame_id
+                odom_msg = Odometry()
+                odom_msg.child_frame_id = "odom"
+                odom_msg.header.seq = seq
+                odom_msg.header.stamp = rospy.Time.now()
+                odom_msg.header.frame_id = "odom"
+                odom_msg.pose.pose.position.x = float(x_pose)
+                odom_msg.pose.pose.position.x = float(y_pose)
+                odom_msg.pose.pose.orientation = Quaternion(*quat)
+                odom_msg.twist.twist.linear.x = float(linear_vel)
+                odom_msg.twist.twist.angular.z = float(angular_vel)
 
-            # The pose in this message should be specified in the coordinate frame given by header.frame_id.
-            # The twist in this message should be specified in the coordinate frame given by the child_frame_id
-            odom_msg = Odometry()
-            odom_msg.child_frame_id = "odom"
-            odom_msg.header.seq = seq
-            odom_msg.header.stamp = rospy.Time.now()
-            odom_msg.header.frame_id = "odom"
-            odom_msg.pose.pose.position.x = float(x_pose)
-            odom_msg.pose.pose.position.x = float(y_pose)
-            odom_msg.pose.pose.orientation = Quaternion(*quat)
-            odom_msg.twist.twist.linear.x = float(linear_vel)
-            odom_msg.twist.twist.angular.z = float(angular_vel)
+                odom_msg.pose.covariance[0] = float(xVar_pose)
+                odom_msg.pose.covariance[7] = float(yVar_pose)
+                odom_msg.pose.covariance[35] = float(thetaVar)
+                odom_msg.twist.covariance[0] = float(linearVar_vel)
+                odom_msg.twist.covariance[35] = float(angularVar_vel)
 
-            odom_msg.pose.covariance[0] = float(xVar_pose)
-            odom_msg.pose.covariance[7] = float(yVar_pose)
-            odom_msg.pose.covariance[35] = float(thetaVar)
-            odom_msg.twist.covariance[0] = float(linearVar_vel)
-            odom_msg.twist.covariance[35] = float(angularVar_vel)
-            odom_pub.publish(odom_msg)
-            seq += 1
+            finally:
+                odom_pub.publish(odom_msg)
+                seq += 1
 
 
 def cmd_vel2angular_wheel_velocity(vel, diameter=0.1651,
@@ -223,15 +225,15 @@ def emergency_stope_cb(empty, emergency_cmd_stope, ser, lock):
 def myhook(ser2, ser, lock):
     try:
         ser2.close
-    except:
+    finally:
         pass
     try:
         ser.close
-    except:
+    finally:
         pass
     try:
         lock.release()
-    except:
+    finally:
         pass
     rospy.loginfo("Bye, see you soon :)")
 
