@@ -68,9 +68,12 @@ def odom_func(line, odom_pub):
             seq += 1
 
 
-def cmd_vel2angular_wheel_velocity(vel, diameter=0.1651, wheelsSeparation=0.385):
-    cmd_linear_left = vel.linear.x - ((vel.angular.z * wheelsSeparation) / 2.0)
-    cmd_linear_right = vel.linear.x + ((vel.angular.z * wheelsSeparation) / 2.0)
+def cmd_vel2angular_wheel_velocity(vel, diameter=0.1651,
+                                   wheelsSeparation=0.385):
+    cmd_linear_left = vel.linear.x - ((vel.angular.z *
+                                       wheelsSeparation) / 2.0)
+    cmd_linear_right = vel.linear.x + ((vel.angular.z *
+                                        wheelsSeparation) / 2.0)
     cmd_angular_left = cmd_linear_left / (diameter / 2)
     cmd_angular_right = cmd_linear_right / (diameter / 2)
     # print("cmd_angular_left: ", cmd_angular_left, "cmd_angular_right: ", cmd_angular_right)
@@ -119,8 +122,10 @@ def open_serial_port():
         for p in ports:
             port.append(p.device)
 
-        if len(ports) == 2 and ("/dev/ttyUSB" in port[0]) and ("/dev/ttyUSB" in port[1]):
-            ser = serial.Serial(port[0], baud, write_timeout=0.5, timeout=0.5)  # open serial port
+        if len(ports) == 2 and ("/dev/ttyUSB" in
+                                port[0]) and ("/dev/ttyUSB" in port[1]):
+            ser = serial.Serial(port[0], baud,
+                                write_timeout=0.5, timeout=0.5)  # open serial port
             # print(ser.name)         # check which port was really used
         else:
             rospy.logerr("Error port is not found")
@@ -134,8 +139,10 @@ def open_serial_port():
         for p in ports:
             port.append(p.device)
 
-        if len(ports) == 2 and ("/dev/ttyUSB" in port[0]) and ("/dev/ttyUSB" in port[1]):
-            ser2 = serial.Serial(port[1], baud, write_timeout=0.5, timeout=0.5)  # open serial port
+        if len(ports) == 2 and ("/dev/ttyUSB" in
+                                port[0]) and ("/dev/ttyUSB" in port[1]):
+            ser2 = serial.Serial(port[1], baud,
+                                 write_timeout=0.5, timeout=0.5)  # open serial port
             # print(ser.name)         # check which port was really used
         else:
             rospy.logerr("Error port is not found")
@@ -157,7 +164,8 @@ def cmd_vel_cb(vel, ser, debug, lock):
         cmd_angular_left, cmd_angular_right = cmd_vel2angular_wheel_velocity(vel)
         cmd_angular_left = (cmd_angular_left)
         cmd_angular_right = (cmd_angular_right)
-        send = str(str("cmdVel") + str(";") + str(cmd_angular_left) + str(";") + str(cmd_angular_right) + '\n')
+        send = (str(str("cmdVel") + str(";") + str(cmd_angular_left) +
+                str(";") + str(cmd_angular_right) + '\n'))
         try:
             ser.write(bytes(send, encoding='utf8'))
             if(debug):

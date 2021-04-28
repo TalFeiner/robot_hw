@@ -445,9 +445,7 @@ void loop() {
       double tmpCosyErrorSq = dist * cos(theta);
       double tmpyErrorSqrt = (sq(tmpSinyErrorSq) * sq(distError)) + (sq(tmpCosyErrorSq) * sq(thetaError));
       yError = sqrt(tmpyErrorSqrt);  //[m]
-      Serial2.print((String)"Odom;" + "Twist;" + "angular;" + String(omega,8) + ";linear;" + String(linearV,8));
-      Serial2.print((String)";Pose;" + "x;" + String(x,8) + ";y;" + String(y,8) + ";theta;" + String(theta,8));
-      Serial2.println((String)";xVar;" + String(xError,8) + ";yVar;" + String(yError,8) + ";thetaVar;" + String(thetaError,8) + ";angularVar;" + String(omegaError,8) + ";linearVar;" + String(linearErrorV,8) + ";" + '\n');
+      Serial2.print((String)((String)"Odom;" + "angular;" + String(omega,8) + ";linear;" + String(linearV,8) + ";" + "x;" + String(x,8) + ";y;" + String(y,8) + ";theta;" + String(theta,8) + (String)";xVar;" + String(xError,8) + ";yVar;" + String(yError,8) + ";thetaVar;" + String(thetaError,8) + ";angularVar;" + String(omegaError,8) + ";linearVar;" + String(linearErrorV,8) + ";" + '\n'));
       resetError = false;
     }
 
