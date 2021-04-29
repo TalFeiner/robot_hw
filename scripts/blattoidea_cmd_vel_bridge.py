@@ -68,9 +68,9 @@ def odom_func(line, odom_pub):
                 odom_msg.pose.covariance[35] = float(thetaVar)
                 odom_msg.twist.covariance[0] = float(linearVar_vel)
                 odom_msg.twist.covariance[35] = float(angularVar_vel)
-
-            finally:
                 odom_pub.publish(odom_msg)
+            finally:
+
                 seq += 1
 
 
