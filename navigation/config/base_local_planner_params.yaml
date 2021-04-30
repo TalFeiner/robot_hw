@@ -1,7 +1,7 @@
 TebLocalPlannerROS:
 
- odom_topic: /mobile_base_controller/odom
- map_frame: /map
+ odom_topic: /odom
+ map_frame: odom
     
  # Trajectory
   
