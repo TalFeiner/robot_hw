@@ -88,6 +88,7 @@ def cmd_vel2angular_wheel_velocity(vel, diameter=0.1651,
 
 
 def open_serial_port():
+    ser_list = []
     baud = ""
     baud2 = ""
     try:
@@ -131,14 +132,14 @@ def open_serial_port():
 
         if len(ports) == 2 and ("/dev/ttyUSB" in
                                 port[0]) and ("/dev/ttyUSB" in port[1]):
-            ser = serial.Serial(port[0], baud,
-                                write_timeout=0.5, timeout=0.5)  # open serial port
+            ser_list.append(serial.Serial(port[0], baud,
+                            write_timeout=0.5, timeout=0.5))  # open serial port
             # print(ser.name)         # check which port was really used
         else:
             rospy.logerr("Error port is not found")
 
     else:
-        ser = serial.Serial(port, baud, write_timeout=0.5, timeout=0.5)
+        ser_list.append(serial.Serial(port, baud, write_timeout=0.5, timeout=0.5))
 
     if not port2:
         ports = list_ports.comports()
@@ -148,28 +149,24 @@ def open_serial_port():
 
         if len(ports) == 2 and ("/dev/ttyUSB" in
                                 port[0]) and ("/dev/ttyUSB" in port[1]):
-            ser2 = serial.Serial(port[1], baud,
-                                 write_timeout=0.5, timeout=0.5)  # open serial port
+            ser_list.append(serial.Serial(port[1], baud,
+                            write_timeout=0.5, timeout=0.5))  # open serial port
             # print(ser.name)         # check which port was really used
         else:
             rospy.logerr("Error port is not found")
 
     else:
-        ser2 = serial.Serial(port2, baud2, write_timeout=0.5, timeout=0.5)  # open serial port
+        ser_list.append(serial.Serial(port2, baud2, write_timeout=0.5, timeout=0.5))  # open serial port
 
     rospy.sleep(0.01)
-    ser.flushInput()
-    ser2.flushInput()
-    ser.flushOutput()
-    ser2.flushOutput()
+    for ser in ser_list:
+        ser.flushInput()
+        ser.flushOutput()
     rospy.sleep(0.01)
-    ser_array = []
-    ser_array.append(ser)
-    ser_array.append(ser2)
-    return ser_array
+    return ser_list
 
 
-def cmd_vel_cb(vel, ser, debug, lock):
+def cmd_vel_cb(vel, ser_list, debug, lock):
     global count_cmd_cb
     try:
         lock.acquire()
@@ -179,28 +176,29 @@ def cmd_vel_cb(vel, ser, debug, lock):
         send = (str(str("cmdVel") + str(";") + str(cmd_angular_left) +
                 str(";") + str(cmd_angular_right) + '\n'))
         try:
-            ser.write(bytes(send, encoding='utf8'))
+            ser_list[0].write(bytes(send, encoding='utf8'))
             if(debug):
                 print("sending: " + str(send))
             count_cmd_cb += 1
             if(count_cmd_cb % 100 == 0):
-                ser.flushOutput()
+                ser_list[0].flushOutput()
                 rospy.sleep(0.01)
                 count_cmd_cb = 0
         except serial.SerialException as e:
             rospy.logerr(e)
+            ser_list = recovery_behavior()
             pass
     finally:
         lock.release()
         return EmptyResponse()
 
 
-def reset_cov_cb(empty, ser, lock):
+def reset_cov_cb(empty, ser_list, lock):
     try:
         lock.acquire()
         send = str("resetError;null" + '\n')
         for __ in range(3):
-            ser.write(bytes(send, encoding='utf8'))
+            ser_list[0].write(bytes(send, encoding='utf8'))
             rospy.sleep(0.01)
         rospy.loginfo("dead reckoning covariance reset, done.")
     finally:
@@ -220,7 +218,7 @@ def emergency_stope_cb(empty, emergency_cmd_stope, ser, lock):
         stope_msg.angular.y = 0
         stope_msg.angular.z = 0
         for __ in range(3):
-            ser.write(bytes(send, encoding='utf8'))
+            ser_list[0].write(bytes(send, encoding='utf8'))
             emergency_cmd_stope.publish(stope_msg)
             rospy.sleep(0.01)
         rospy.loginfo("Emergency stope!!!")
@@ -235,13 +233,13 @@ def do_something_with_exception():
                   (exc_type.__name__, exc_value, threading.current_thread().name))
 
 
-def myhook(ser2, ser, lock):
+def myhook(ser_list, lock):
     try:
-        ser2.close
+        ser_list[1].close
     except serial.SerialException as e:
         rospy.logerr(e)
     try:
-        ser.close
+        ser_list[0].close
     except serial.SerialException as e:
         rospy.logerr(e)
     try:
@@ -251,26 +249,31 @@ def myhook(ser2, ser, lock):
     rospy.loginfo("Bye, see you soon :)")
 
 
-def main_cb(event, ser_array, odom_pub, debug, lock):
+def recovery_behavior(ser_list):
+    rospy.loginfo("Recovery behavior: trying to reconnect.")
+    ser_list = open_serial_port()
+    return ser_list
+
+
+def main_cb(event, ser_list, odom_pub, debug, lock):
     global count
     try:
         lock.acquire()
         try:
-            if(ser_array[1].in_waiting > 0):
-                line = bytes(ser_array[1].readline()).decode('utf-8')
+            if(ser_list[1].in_waiting > 0):
+                line = bytes(ser_list[1].readline()).decode('utf-8')
                 line = ''.join(filter(lambda c: c in string.printable, line))
                 odom_func(line, odom_pub)
                 if(debug):
                     print("msg - ", line)
             count += 1
             if(count % 100 == 0):
-                ser_array[1].flushInput()
+                ser_list[1].flushInput()
                 rospy.sleep(0.01)
                 count = 0
         except serial.SerialException as e:
             rospy.logerr(e)
-            rospy.loginfo("Recovery behavior: trying to reconnect.")
-            ser_array = open_serial_port()
+            ser_list = recovery_behavior()
             pass
     finally:
         lock.release()
@@ -278,21 +281,19 @@ def main_cb(event, ser_array, odom_pub, debug, lock):
 
 rospy.init_node("blattoidea_hw_node", anonymous=True)
 lock = threading.Lock()
-ser_array = open_serial_port()
-ser = ser_array[0]
-ser2 = ser_array[1]
+ser_list = open_serial_port()
 odom_pub = rospy.Publisher("/odom", Odometry, queue_size=4)
 rospy.Service("/reset_dead_reckoning_cov", Empty,
-              lambda req: reset_cov_cb(req, ser, lock))
+              lambda req: reset_cov_cb(req, ser_list, lock))
 emergency_cmd_stope = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
 rospy.Service("/emergency_stope", Empty,
               lambda rqs: emergency_stope_cb(rqs, emergency_cmd_stope,
-                                             ser, lock))
+                                             ser_list, lock))
 rospy.Subscriber("/cmd_vel", Twist,
-                 lambda msg: cmd_vel_cb(msg, ser, debug, lock))
+                 lambda msg: cmd_vel_cb(msg, ser_list, debug, lock))
 rospy.loginfo("Blattoidea is under your command.")
 
 rospy.Timer(rospy.Duration(0.1),
-            lambda event: main_cb(event, ser_array, odom_pub, debug, lock))
-rospy.on_shutdown(lambda: myhook(ser2, ser, lock))
+            lambda event: main_cb(event, ser_list, odom_pub, debug, lock))
+rospy.on_shutdown(lambda: myhook(ser_list, lock))
 rospy.spin()
