@@ -1,7 +1,7 @@
 footprint: [[0.25, 0.25], [-0.25, 0.25], [-0.25, -0.25], [0.25, -0.25]]
 footprint_padding: 0.02
 
-robot_base_frame: /base_footprint
+robot_base_frame: odom
 update_frequency: 1.0
 publish_frequency: 5.0
 transform_tolerance: 0.5
@@ -12,8 +12,8 @@ obstacle_range: 4.5
 raytrace_range: 5.0
 
 static:
-    map_topic: /map
-    subscribe_to_updates: true
+    map_topic: odom
+    subscribe_to_updates: false
 
 obstacles_laser:
     observation_sources: laser

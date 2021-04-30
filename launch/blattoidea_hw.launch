@@ -29,6 +29,11 @@
         <param name="port" value="/dev/ttyUSB0" />
         <param name="baud" value="57600" />
     </node>-->
+    
+    <include file="$(find blattoidea_hw)/launch/imu.launch" />
+    <include file="$(find blattoidea_hw)/launch/gps.launch" />
+    <include file="$(find blattoidea_hw)/launch/localization.launch" />
+    
 
 </launch>
 
