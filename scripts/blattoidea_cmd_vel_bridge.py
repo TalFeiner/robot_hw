@@ -69,9 +69,9 @@ def odom_func(line, odom_pub):
                 odom_msg.twist.covariance[0] = float(linearVar_vel)
                 odom_msg.twist.covariance[35] = float(angularVar_vel)
                 odom_pub.publish(odom_msg)
-            finally:
-
                 seq += 1
+            finally:
+                pass
 
 
 def cmd_vel2angular_wheel_velocity(vel, diameter=0.1651,
@@ -177,8 +177,9 @@ def cmd_vel_cb(vel, ser, debug, lock):
             if(debug):
                 print("sending: " + str(send))
             count_cmd_cb += 1
-            if(count_cmd_cb % 10 == 0):
+            if(count_cmd_cb % 100 == 0):
                 ser.flushOutput()
+                rospy.sleep(0.01)
                 count_cmd_cb = 0
         except serial.SerialException as e:
             rospy.logerr(e)
@@ -250,8 +251,9 @@ def main_cb(event, ser2, odom_pub, debug, lock):
                 if(debug):
                     print("msg - ", line)
             count += 1
-            if(count % 10 == 0):
+            if(count % 100 == 0):
                 ser2.flushInput()
+                rospy.sleep(0.01)
                 count = 0
         except serial.SerialException as e:
             rospy.logerr(e)

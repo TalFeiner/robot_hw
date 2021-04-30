@@ -460,7 +460,7 @@ void loop() {
     }
   }
 
-  if(digitalRead(buttonPin) == LOW) {
+  if(digitalRead(buttonPin) == HIGH) {
     linearCmdVal = (float)pulseIn(PWMLinearPin, HIGH) + 50;
     angularCmdVal = (float)pulseIn(PWMAngularPin, HIGH);
 
