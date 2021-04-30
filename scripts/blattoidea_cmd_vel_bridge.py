@@ -9,6 +9,7 @@ from serial.tools import list_ports
 from std_srvs.srv import Empty, EmptyResponse
 import threading
 import string
+import sys
 
 global seq, count_cmd_cb, count
 debug = False
@@ -21,57 +22,57 @@ def odom_func(line, odom_pub):
     global seq
     if "Odom" in line:
         line_list = line.split(";")
-        if (len(line_list) == 22 and line_list[-1] == "\n" and "angular" in
-           line and "linear" in line and "x" in line and "y" in line and
-           "theta" in line and "xVar" in line and "yVar" in line and
-           "thetaVar" in line and "angularVar" in line and "linearVar" in line):
-            try:
-                angular_vel_idx = line_list.index("angular") + 1
-                linear_vel_idx = line_list.index("linear") + 1
-                x_pose_idx = line_list.index("x") + 1
-                y_pose_idx = line_list.index("y") + 1
-                theta_idx = line_list.index("theta") + 1
-                angular_vel = line_list[angular_vel_idx]
-                linear_vel = line_list[linear_vel_idx]
-                x_pose = line_list[x_pose_idx]
-                y_pose = line_list[y_pose_idx]
-                theta = line_list[theta_idx]
+        # if(len(line_list) == 22 and line_list[-1] == "\n" and "angular" in
+        #    line and "linear" in line and "x" in line and "y" in line and
+        #    "theta" in line and "xVar" in line and "yVar" in line and
+        #    "thetaVar" in line and "angularVar" in line and "linearVar" in line):
+        try:
+            angular_vel_idx = line_list.index("angular") + 1
+            linear_vel_idx = line_list.index("linear") + 1
+            x_pose_idx = line_list.index("x") + 1
+            y_pose_idx = line_list.index("y") + 1
+            theta_idx = line_list.index("theta") + 1
+            angular_vel = line_list[angular_vel_idx]
+            linear_vel = line_list[linear_vel_idx]
+            x_pose = line_list[x_pose_idx]
+            y_pose = line_list[y_pose_idx]
+            theta = line_list[theta_idx]
 
-                xVar_pose_idx = line_list.index("xVar") + 1
-                yVar_pose_idx = line_list.index("yVar") + 1
-                thetaVar_idx = line_list.index("thetaVar") + 1
-                angularVar_vel_idx = line_list.index("angularVar") + 1
-                linearVar_vel_idx = line_list.index("linearVar") + 1
-                angularVar_vel = line_list[angularVar_vel_idx]
-                linearVar_vel = line_list[linearVar_vel_idx]
-                xVar_pose = line_list[xVar_pose_idx]
-                yVar_pose = line_list[yVar_pose_idx]
-                thetaVar = line_list[thetaVar_idx]
+            xVar_pose_idx = line_list.index("xVar") + 1
+            yVar_pose_idx = line_list.index("yVar") + 1
+            thetaVar_idx = line_list.index("thetaVar") + 1
+            angularVar_vel_idx = line_list.index("angularVar") + 1
+            linearVar_vel_idx = line_list.index("linearVar") + 1
+            angularVar_vel = line_list[angularVar_vel_idx]
+            linearVar_vel = line_list[linearVar_vel_idx]
+            xVar_pose = line_list[xVar_pose_idx]
+            yVar_pose = line_list[yVar_pose_idx]
+            thetaVar = line_list[thetaVar_idx]
 
-                quat = Rotation.from_euler('z', float(theta)).as_quat()
+            quat = Rotation.from_euler('z', float(theta)).as_quat()
 
-                # The pose in this message should be specified in the coordinate frame given by header.frame_id.
-                # The twist in this message should be specified in the coordinate frame given by the child_frame_id
-                odom_msg = Odometry()
-                odom_msg.child_frame_id = "odom"
-                odom_msg.header.seq = seq
-                odom_msg.header.stamp = rospy.Time.now()
-                odom_msg.header.frame_id = "odom"
-                odom_msg.pose.pose.position.x = float(x_pose)
-                odom_msg.pose.pose.position.x = float(y_pose)
-                odom_msg.pose.pose.orientation = Quaternion(*quat)
-                odom_msg.twist.twist.linear.x = float(linear_vel)
-                odom_msg.twist.twist.angular.z = float(angular_vel)
+            # The pose in this message should be specified in the coordinate frame given by header.frame_id.
+            # The twist in this message should be specified in the coordinate frame given by the child_frame_id
+            odom_msg = Odometry()
+            odom_msg.child_frame_id = "odom"
+            odom_msg.header.seq = seq
+            odom_msg.header.stamp = rospy.Time.now()
+            odom_msg.header.frame_id = "odom"
+            odom_msg.pose.pose.position.x = float(x_pose)
+            odom_msg.pose.pose.position.x = float(y_pose)
+            odom_msg.pose.pose.orientation = Quaternion(*quat)
+            odom_msg.twist.twist.linear.x = float(linear_vel)
+            odom_msg.twist.twist.angular.z = float(angular_vel)
 
-                odom_msg.pose.covariance[0] = float(xVar_pose)
-                odom_msg.pose.covariance[7] = float(yVar_pose)
-                odom_msg.pose.covariance[35] = float(thetaVar)
-                odom_msg.twist.covariance[0] = float(linearVar_vel)
-                odom_msg.twist.covariance[35] = float(angularVar_vel)
-                odom_pub.publish(odom_msg)
-                seq += 1
-            finally:
-                pass
+            odom_msg.pose.covariance[0] = float(xVar_pose)
+            odom_msg.pose.covariance[7] = float(yVar_pose)
+            odom_msg.pose.covariance[35] = float(thetaVar)
+            odom_msg.twist.covariance[0] = float(linearVar_vel)
+            odom_msg.twist.covariance[35] = float(angularVar_vel)
+            odom_pub.publish(odom_msg)
+            seq += 1
+        finally:
+            return
 
 
 def cmd_vel2angular_wheel_velocity(vel, diameter=0.1651,
@@ -156,11 +157,16 @@ def open_serial_port():
     else:
         ser2 = serial.Serial(port2, baud2, write_timeout=0.5, timeout=0.5)  # open serial port
 
+    rospy.sleep(0.01)
     ser.flushInput()
     ser2.flushInput()
     ser.flushOutput()
     ser2.flushOutput()
-    return ser, ser2
+    rospy.sleep(0.01)
+    ser_array = []
+    ser_array.append(ser)
+    ser_array.append(ser2)
+    return ser_array
 
 
 def cmd_vel_cb(vel, ser, debug, lock):
@@ -223,40 +229,48 @@ def emergency_stope_cb(empty, emergency_cmd_stope, ser, lock):
         return EmptyResponse()
 
 
+def do_something_with_exception():
+    exc_type, exc_value = sys.exc_info()[:2]
+    rospy.logwarn('Handling %s exception with message "%s" in %s' %
+                  (exc_type.__name__, exc_value, threading.current_thread().name))
+
+
 def myhook(ser2, ser, lock):
     try:
         ser2.close
-    finally:
-        pass
+    except serial.SerialException as e:
+        rospy.logerr(e)
     try:
         ser.close
-    finally:
-        pass
+    except serial.SerialException as e:
+        rospy.logerr(e)
     try:
         lock.release()
-    finally:
-        pass
+    except:
+        do_something_with_exception()
     rospy.loginfo("Bye, see you soon :)")
 
 
-def main_cb(event, ser2, odom_pub, debug, lock):
+def main_cb(event, ser_array, odom_pub, debug, lock):
     global count
     try:
         lock.acquire()
         try:
-            if(ser2.in_waiting > 0):
-                line = bytes(ser2.readline()).decode('utf-8')
+            if(ser_array[1].in_waiting > 0):
+                line = bytes(ser_array[1].readline()).decode('utf-8')
                 line = ''.join(filter(lambda c: c in string.printable, line))
                 odom_func(line, odom_pub)
                 if(debug):
                     print("msg - ", line)
             count += 1
             if(count % 100 == 0):
-                ser2.flushInput()
+                ser_array[1].flushInput()
                 rospy.sleep(0.01)
                 count = 0
         except serial.SerialException as e:
             rospy.logerr(e)
+            rospy.loginfo("Recovery behavior: trying to reconnect.")
+            ser_array = open_serial_port()
             pass
     finally:
         lock.release()
@@ -264,7 +278,9 @@ def main_cb(event, ser2, odom_pub, debug, lock):
 
 rospy.init_node("blattoidea_hw_node", anonymous=True)
 lock = threading.Lock()
-ser, ser2 = open_serial_port()
+ser_array = open_serial_port()
+ser = ser_array[0]
+ser2 = ser_array[1]
 odom_pub = rospy.Publisher("/odom", Odometry, queue_size=4)
 rospy.Service("/reset_dead_reckoning_cov", Empty,
               lambda req: reset_cov_cb(req, ser, lock))
@@ -277,6 +293,6 @@ rospy.Subscriber("/cmd_vel", Twist,
 rospy.loginfo("Blattoidea is under your command.")
 
 rospy.Timer(rospy.Duration(0.1),
-            lambda event: main_cb(event, ser2, odom_pub, debug, lock))
+            lambda event: main_cb(event, ser_array, odom_pub, debug, lock))
 rospy.on_shutdown(lambda: myhook(ser2, ser, lock))
 rospy.spin()
