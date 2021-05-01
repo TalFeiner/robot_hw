@@ -19,11 +19,17 @@ count = 0
 
 def do_something_with_exception():
     exc_type, exc_value = sys.exc_info()[:2]
-    rospy.logerr('Handling %s exception with message "%s" in %s' %
-                 (exc_type.__name__, exc_value, threading.current_thread().name))
+    rospy.logwarn('Handling %s exception with message "%s" in %s' %
+                  (exc_type.__name__, exc_value,
+                   threading.current_thread().name))
 
 
 def recovery_behavior(ser_list):
+    for ser in ser_list:
+        try:
+            ser.close()
+        except serial.SerialException as e:
+            rospy.logerr(e)
     open_serial_port(ser_list)
     rospy.loginfo("Recovery behavior: trying to reconnect.")
 
@@ -137,7 +143,8 @@ def open_serial_port(ser_list, num=2):
                 rospy.logerr("Error port was not found")
         else:
             try:
-                ser_list.append(serial.Serial(port, baud, write_timeout=0.5, timeout=0.5))
+                ser_list.append(serial.Serial(port, baud,
+                                              write_timeout=0.5, timeout=0.5))
             except serial.SerialException as e:
                 rospy.logerr(e)
     c = 0
@@ -167,7 +174,8 @@ def cmd_vel_cb(vel, ser_list, debug, lock):
             lock.acquire()
         except:
             do_something_with_exception()
-        cmd_angular_left, cmd_angular_right = cmd_vel2angular_wheel_velocity(vel)
+        cmd_angular_left, cmd_angular_right = \
+            cmd_vel2angular_wheel_velocity(vel)
         cmd_angular_left = (cmd_angular_left)
         cmd_angular_right = (cmd_angular_right)
         send = (str(str("cmdVel") + str(";") + str(cmd_angular_left) +
