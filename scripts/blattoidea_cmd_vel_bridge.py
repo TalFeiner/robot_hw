@@ -30,6 +30,7 @@ def recovery_behavior(ser_list):
             ser.close()
         except serial.SerialException as e:
             rospy.logerr(e)
+    rospy.sleep(0.001)
     open_serial_port(ser_list)
     rospy.loginfo("Recovery behavior: trying to reconnect.")
 
@@ -113,13 +114,13 @@ def open_serial_port(ser_list, num=2):
     for ii in range(num):
         baud = ""
         try:
-            baud = rospy.get_param('~baud_%s' % str((ii + 1)), 115200)
+            baud = rospy.get_param('~baud_%s' % str(ii), 115200)
         except rospy.ROSException as e:
             rospy.logerr("ROSException: " + e)
             rospy.logerr("could not get baud param value, trying default value")
         port = ""
         try:
-            port = rospy.get_param('~port_%s' % str((ii + 1)))
+            port = rospy.get_param('~port_%s' % str(ii))
         except rospy.ROSException as e:
             rospy.logerr("ROSException: " + e)
             rospy.logerr("could not get port param name, trying default port")
@@ -158,13 +159,13 @@ def open_serial_port(ser_list, num=2):
                     break
     if c != num:
         rospy.logerr("Error, number of open ports is: %s" % c)
-    rospy.sleep(0.01)
+    rospy.sleep(0.001)
     for ser in ser_list:
         try:
             ser.flush()
         except serial.SerialException as e:
             rospy.logerr(e)
-    rospy.sleep(0.01)
+    rospy.sleep(0.001)
 
 
 def cmd_vel_cb(vel, ser_list, debug, lock):
@@ -192,7 +193,7 @@ def cmd_vel_cb(vel, ser_list, debug, lock):
         if(count_cmd_cb % 100 == 0):
             try:
                 ser_list[0].reset_output_buffer()
-                rospy.sleep(0.01)
+                rospy.sleep(0.001)
             except serial.SerialException as e:
                 rospy.logerr(e)
                 recovery_behavior(ser_list)
@@ -220,7 +221,7 @@ def reset_cov_cb(empty, ser_list, lock):
                 rospy.logerr(e)
                 recovery_behavior(ser_list)
             finally:
-                rospy.sleep(0.01)
+                rospy.sleep(0.001)
         rospy.loginfo("dead reckoning covariance reset, done.")
     finally:
         try:
@@ -252,7 +253,7 @@ def emergency_stope_cb(empty, emergency_cmd_stope, ser_list, lock):
                 recovery_behavior(ser_list)
             finally:
                 emergency_cmd_stope.publish(stope_msg)
-                rospy.sleep(0.01)
+                rospy.sleep(0.001)
         rospy.loginfo("Emergency stope!!!")
     finally:
         try:
@@ -310,7 +311,7 @@ def main_cb(event, ser_list, odom_pub, debug, lock):
         if(count % 100 == 0):
             try:
                 ser_list[1].reset_input_buffer()
-                rospy.sleep(0.01)
+                rospy.sleep(0.001)
             except serial.SerialException as e:
                 rospy.logerr(e)
                 recovery_behavior(ser_list)

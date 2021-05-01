@@ -11,10 +11,10 @@
 	</node>
 
    <node name="blattoidea_cmd_vel" pkg="blattoidea_hw" type="blattoidea_cmd_vel_bridge.py" output="screen">
-        <param name="port_1" value="/dev/arduino0" />
+        <param name="port_0" value="/dev/arduino0" />
+        <param name="baud_0" value="115200" />
+        <param name="port_1" value="/dev/arduino1" />
         <param name="baud_1" value="115200" />
-        <param name="port_2" value="/dev/arduino1" />
-        <param name="baud_2" value="115200" />
     </node>
     
      <node name="tf_broadcaster_blattoidea_node" pkg="blattoidea_hw" type="blattoidea_tf_broadcaster.py">
