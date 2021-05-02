@@ -26,21 +26,11 @@ def do_something_with_exception():
 
 def recovery_behavior(num=2):
     global ser_list
-    for ser in ser_list:
-        try:
-            ser.close()
-        except serial.SerialException as e:
-            rospy.logerr(e)
-    rospy.sleep(0.001)
-    open_serial_port()
-    rospy.loginfo("Recovery behavior: trying to reconnect.")
     c = 0
     for ii in range(num):
         try:
             if ser_list[ii].is_open:
                 c += 1
-                if c == ii:
-                    break
         except serial.SerialException as e:
             rospy.logerr(e)
         except:
@@ -48,10 +38,26 @@ def recovery_behavior(num=2):
     if c != num:
         rospy.loginfo("Number of open ports: %s, number of required ports: %s."
                       % c % num)
+        for ser in ser_list:
+            try:
+                ser.close()
+            except serial.SerialException as e:
+                rospy.logerr(e)
+        rospy.sleep(0.001)
+        open_serial_port()
+        rospy.loginfo("Recovery behavior: trying to reconnect.")
+    c = 0
+    for ii in range(num):
         try:
-            recovery_behavior()
+            if ser_list[ii].is_open:
+                c += 1
+        except serial.SerialException as e:
+            rospy.logerr(e)
         except:
             do_something_with_exception()
+    if c != num:
+        rospy.logerr("Number of open ports: %s, number of required ports: %s."
+                     % c % num)
 
 
 def cmd_vel2angular_wheel_velocity(vel, diameter=0.1651,
@@ -159,8 +165,6 @@ def open_serial_port(num=2):
                     finally:
                         if open:
                             c += 1
-                            if c == ii:
-                                break
             else:
                 rospy.logerr("Error port was not found")
         else:
@@ -174,8 +178,6 @@ def open_serial_port(num=2):
         try:
             if ser_list[ii].is_open:
                 c += 1
-                if c == ii:
-                    break
         except serial.SerialException as e:
             rospy.logerr(e)
         except:
