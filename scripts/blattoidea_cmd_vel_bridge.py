@@ -419,7 +419,8 @@ def main_cb(event, odom_pub, debug, lock):
                 return
             except:
                 do_something_with_exception()
-                recovery_behavior()recovery_behavior
+                recovery_behavior()
+                try:
                     lock.release()
                 except:
                     do_something_with_exception()
