@@ -22,42 +22,43 @@ def do_something_with_exception():
     rospy.logwarn('Handling %s exception with message "%s" in %s' %
                   (exc_type.__name__, exc_value,
                    threading.current_thread().name))
+    return str('Handling %s exception with message "%s" in %s' %
+               (exc_type.__name__, exc_value,
+                threading.current_thread().name))
 
 
-def recovery_behavior(num=2):
-    global ser_list
-    c = 0
-    for ii in range(num):
+def recovery_behavior():
+    global ser_list, emergency_cmd_stop
+    send = str("emergencystop;null" + '\n')
+    stop_msg = Twist()
+    stop_msg.linear.x = 0
+    stop_msg.linear.y = 0
+    stop_msg.linear.z = 0
+    stop_msg.angular.x = 0
+    stop_msg.angular.y = 0
+    stop_msg.angular.z = 0
+    for __ in range(3):
         try:
-            if ser_list[ii].is_open:
-                c += 1
+            ser_list[0].write(bytes(send, encoding='utf8'))
         except serial.SerialException as e:
             rospy.logerr(e)
         except:
             do_something_with_exception()
-    if c != num:
-        rospy.loginfo("Number of open ports: %s, number of required ports: %s."
-                      % c % num)
-        for ser in ser_list:
-            try:
-                ser.close()
-            except serial.SerialException as e:
-                rospy.logerr(e)
-        rospy.sleep(0.001)
+        finally:
+            emergency_cmd_stop.publish(stop_msg)
+            rospy.sleep(0.001)
+    for ser in ser_list:
+        try:
+            ser.close()
+        except serial.SerialException as e:
+            rospy.logerr(e)
+    rospy.sleep(0.001)
+    try:
         open_serial_port()
-        rospy.loginfo("Recovery behavior: trying to reconnect.")
-    c = 0
-    for ii in range(num):
-        try:
-            if ser_list[ii].is_open:
-                c += 1
-        except serial.SerialException as e:
-            rospy.logerr(e)
-        except:
-            do_something_with_exception()
-    if c != num:
-        rospy.logerr("Number of open ports: %s, number of required ports: %s."
-                     % c % num)
+    except:
+        do_something_with_exception()
+        recovery_behavior()
+    rospy.loginfo("Recovery behavior: trying to reconnect.")
 
 
 def cmd_vel2angular_wheel_velocity(vel, diameter=0.1651,
@@ -160,36 +161,47 @@ def open_serial_port(num=2):
                         # print(ser.name)         # check which port was really used
                     except serial.SerialException as e:
                         rospy.logerr(e)
+                        raise e
                     try:
-                        open = ser_list[ii].is_open
-                    finally:
-                        if open:
+                        if ser_list[ii].is_open:
                             c += 1
+                        if c == ii:
+                            break
+                    except serial.SerialException as e:
+                        rospy.logerr(e)
+                        raise e
             else:
                 rospy.logerr("Error port was not found")
+                raise "Error port was not found"
         else:
             try:
                 ser_list.append(serial.Serial(port, baud,
                                               write_timeout=0.5, timeout=0.5))
             except serial.SerialException as e:
                 rospy.logerr(e)
+                raise e
     c = 0
     for ii in range(num):
         try:
             if ser_list[ii].is_open:
                 c += 1
+                if c == ii:
+                    break
         except serial.SerialException as e:
             rospy.logerr(e)
+            raise e
         except:
-            do_something_with_exception()
+            raise do_something_with_exception()
     if c != num:
         rospy.logerr("Error, number of open ports is: %s" % c)
+        raise str("Error, number of open ports is: %s" % c)
     rospy.sleep(0.001)
     for ser in ser_list:
         try:
             ser.flush()
         except serial.SerialException as e:
             rospy.logerr(e)
+            raise e
     rospy.sleep(0.001)
 
 
@@ -210,8 +222,20 @@ def cmd_vel_cb(vel, debug, lock):
             ser_list[0].write(bytes(send, encoding='utf8'))
         except serial.SerialException as e:
             rospy.logerr(e)
+            recovery_behavior()
+            try:
+                lock.release()
+            except:
+                do_something_with_exception()
+            return
         except:
             do_something_with_exception()
+            recovery_behavior()
+            try:
+                lock.release()
+            except:
+                do_something_with_exception()
+            return
         finally:
             if(debug):
                 print("sending: " + str(send))
@@ -221,6 +245,12 @@ def cmd_vel_cb(vel, debug, lock):
                 ser_list[0].reset_output_buffer()
             except serial.SerialException as e:
                 rospy.logerr(e)
+                recovery_behavior()
+                try:
+                    lock.release()
+                except:
+                    do_something_with_exception()
+                return
             finally:
                 rospy.sleep(0.001)
                 count_cmd_cb = 0
@@ -229,7 +259,6 @@ def cmd_vel_cb(vel, debug, lock):
             lock.release()
         except:
             do_something_with_exception()
-    return EmptyResponse()
 
 
 def reset_cov_cb(empty, lock):
@@ -245,6 +274,14 @@ def reset_cov_cb(empty, lock):
                 ser_list[0].write(bytes(send, encoding='utf8'))
             except serial.SerialException as e:
                 rospy.logerr(e)
+                recovery_behavior()
+            except:
+                do_something_with_exception()
+                try:
+                    lock.release()
+                except:
+                    do_something_with_exception()
+                return
             finally:
                 rospy.sleep(0.001)
         rospy.loginfo("dead reckoning covariance reset, done.")
@@ -256,30 +293,38 @@ def reset_cov_cb(empty, lock):
     return EmptyResponse()
 
 
-def emergency_stope_cb(empty, emergency_cmd_stope, lock):
-    global ser_list
+def emergency_stop_cb(empty, lock):
+    global ser_list, emergency_cmd_stop
     try:
         try:
             lock.acquire()
         except:
             do_something_with_exception()
-        send = str("emergencyStope;null" + '\n')
-        stope_msg = Twist()
-        stope_msg.linear.x = 0
-        stope_msg.linear.y = 0
-        stope_msg.linear.z = 0
-        stope_msg.angular.x = 0
-        stope_msg.angular.y = 0
-        stope_msg.angular.z = 0
+        send = str("emergencystop;null" + '\n')
+        stop_msg = Twist()
+        stop_msg.linear.x = 0
+        stop_msg.linear.y = 0
+        stop_msg.linear.z = 0
+        stop_msg.angular.x = 0
+        stop_msg.angular.y = 0
+        stop_msg.angular.z = 0
         for __ in range(3):
             try:
                 ser_list[0].write(bytes(send, encoding='utf8'))
             except serial.SerialException as e:
                 rospy.logerr(e)
+                recovery_behavior()
+            except:
+                do_something_with_exception()
+                try:
+                    lock.release()
+                except:
+                    do_something_with_exception()
+                return
             finally:
-                emergency_cmd_stope.publish(stope_msg)
+                emergency_cmd_stop.publish(stop_msg)
                 rospy.sleep(0.001)
-        rospy.loginfo("Emergency stope!!!")
+        rospy.loginfo("Emergency stop!!!")
     finally:
         try:
             lock.release()
@@ -304,43 +349,61 @@ def myhook(lock):
 
 def main_cb(event, odom_pub, debug, lock):
     global count, ser_list
+    recovered = False
     try:
         try:
             lock.acquire()
         except:
             do_something_with_exception()
         for ser in ser_list:
-            recovered = False
             try:
                 if not ser.is_open:
                     recovery_behavior()
-                    recovered = True
+                    try:
+                        lock.release()
+                    except:
+                        do_something_with_exception()
+                    return
             except serial.SerialException as e:
                 rospy.logerr(e)
-                if not recovered:
-                    recovery_behavior()
-        # recovered = False
+                recovery_behavior()
+                try:
+                    lock.release()
+                except:
+                    do_something_with_exception()
+                return
         try:
             if(ser_list[1].in_waiting > 0):
                 try:
                     line = bytes(ser_list[1].readline()).decode('utf-8')
                 except serial.SerialException as e:
                     rospy.logerr(e)
-                    # recovery_behavior()
-                    # recovered = True
+                    recovery_behavior()
+                    try:
+                        lock.release()
+                    except:
+                        do_something_with_exception()
+                    return
                 line = ''.join(filter(lambda c: c in string.printable, line))
                 odom_func(line, odom_pub)
                 if(debug):
                     print("msg - ", line)
         except serial.SerialException as e:
             rospy.logerr(e)
-            # if not recovered:
-            #     recovery_behavior()
-            #     recovered = True
+            recovery_behavior()
+            try:
+                lock.release()
+            except:
+                do_something_with_exception()
+            return
         except:
             do_something_with_exception()
-            # if not recovered:
-            #     recovery_behavior()
+            recovery_behavior()
+            try:
+                lock.release()
+            except:
+                do_something_with_exception()
+            return
         count += 1
         if(count % 100 == 0):
             try:
@@ -348,8 +411,19 @@ def main_cb(event, odom_pub, debug, lock):
                 rospy.sleep(0.001)
             except serial.SerialException as e:
                 rospy.logerr(e)
+                recovery_behavior()
+                try:
+                    lock.release()
+                except:
+                    do_something_with_exception()
+                return
             except:
                 do_something_with_exception()
+                recovery_behavior()recovery_behavior
+                    lock.release()
+                except:
+                    do_something_with_exception()
+                return
             finally:
                 count = 0
     finally:
@@ -360,7 +434,7 @@ def main_cb(event, odom_pub, debug, lock):
 
 
 if __name__ == "__main__":
-    global ser_list
+    global ser_list, emergency_cmd_stop
     rospy.init_node("blattoidea_hw_node", anonymous=True)
     debug = False
     lock = threading.Lock()
@@ -368,10 +442,9 @@ if __name__ == "__main__":
     odom_pub = rospy.Publisher("/odom", Odometry, queue_size=4)
     rospy.Service("/reset_dead_reckoning_cov", Empty,
                   lambda req: reset_cov_cb(req, lock))
-    emergency_cmd_stope = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
-    rospy.Service("/emergency_stope", Empty,
-                  lambda rqs: emergency_stope_cb(rqs, emergency_cmd_stope,
-                                                 lock))
+    emergency_cmd_stop = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
+    rospy.Service("/emergency_stop", Empty,
+                  lambda rqs: emergency_stop_cb(rqs, lock))
     rospy.Subscriber("/cmd_vel", Twist,
                      lambda msg: cmd_vel_cb(msg, debug, lock))
     rospy.loginfo("Blattoidea is under your command.")
